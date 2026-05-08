@@ -29,7 +29,7 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
 // Python LSTM Service URL
-define('PYTHON_LSTM_URL', 'http://localhost:5000');
+define('PYTHON_LSTM_URL', 'http://localhost:5001');
 
 // LSTM Default Parameters (for Python TensorFlow/Keras LSTM)
 define('LSTM_SEQUENCE_LENGTH', 8);   // 8 weeks lookback

@@ -370,55 +370,68 @@ function createErrorChart(canvasId, labels, errors) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return null;
 
-    const colors = errors.map(e => e >= 0 ? 'rgba(52, 211, 153, 1)' : 'rgba(248, 113, 113, 1)');
-    const bgColors = errors.map(e => e >= 0 ? 'rgba(52, 211, 153, 0.8)' : 'rgba(248, 113, 113, 0.8)');
+    const emerald = 'rgba(16, 185, 129, 0.85)';
+    const rose = 'rgba(244, 63, 94, 0.85)';
+    const bgColors = errors.map(e => e >= 0 ? emerald : rose);
 
     return new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Error (Aktual - Prediksi)',
+                label: 'Error (Unit)',
                 data: errors,
                 backgroundColor: bgColors,
-                borderColor: colors,
-                borderWidth: 1,
-                borderRadius: 2,
-                maxBarThickness: 16,
+                // Sudut bulat hanya di ujung: top untuk positif, bottom untuk negatif
+                borderRadius: errors.map(v => v >= 0 
+                    ? { topLeft: 10, topRight: 10, bottomLeft: 0, bottomRight: 0 }
+                    : { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 }
+                ),
+                borderSkipped: false,
+                maxBarThickness: 24,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
-                legend: { position: 'top', align: 'end' },
+                legend: { display: false },
                 tooltip: {
                     ...CHART_TOOLTIP,
                     callbacks: {
                         label: function(context) {
                             const val = context.parsed.y;
-                            const label = val >= 0 ? 'Under-predict' : 'Over-predict';
-                            return `Error: ${val.toFixed(2)} (${label})`;
+                            const status = val >= 0 ? 'Under-predict' : 'Over-predict';
+                            return ` Error: ${val > 0 ? '+' : ''}${val.toFixed(2)} unit (${status})`;
                         }
                     }
-                },
-                annotation: undefined
+                }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    border: { display: true, color: '#e2e8f0' },
-                    ticks: { padding: 8, maxRotation: 45, maxTicksLimit: 12 }
+                    border: { display: false },
+                    ticks: { 
+                        color: '#94a3b8',
+                        font: { size: 10, weight: '600' },
+                        padding: 10 
+                    }
                 },
                 y: {
-                    grid: { color: 'rgba(0,0,0,0.04)' },
-                    border: { display: true, color: '#e2e8f0' },
-                    ticks: { padding: 8 },
-                    title: {
-                        display: true,
-                        text: 'Error (unit)',
-                        font: { size: 11, weight: '600' },
-                        color: '#94A3B8'
+                    grid: { 
+                        color: (context) => context.tick.value === 0 ? '#cbd5e1' : 'rgba(0,0,0,0.02)',
+                        lineWidth: (context) => context.tick.value === 0 ? 2 : 1,
+                        drawBorder: false 
+                    },
+                    border: { display: false },
+                    ticks: { 
+                        color: '#94a3b8',
+                        font: { size: 10 },
+                        padding: 10 
                     }
                 }
             }

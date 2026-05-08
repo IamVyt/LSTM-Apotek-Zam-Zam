@@ -87,7 +87,6 @@ try {
     // 4. obat
     $pdo->exec("CREATE TABLE IF NOT EXISTS `obat` (
         `id` INT AUTO_INCREMENT PRIMARY KEY,
-        `kode_obat` VARCHAR(20) NOT NULL UNIQUE,
         `nama_obat` VARCHAR(150) NOT NULL,
         `kategori` INT,
         `bentuk_sediaan` VARCHAR(50),
@@ -100,7 +99,6 @@ try {
         `status` TINYINT(1) NOT NULL DEFAULT 1,
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX `idx_kode` (`kode_obat`),
         INDEX `idx_nama` (`nama_obat`),
         INDEX `idx_kategori` (`kategori`),
         INDEX `idx_status` (`status`),
@@ -207,28 +205,28 @@ try {
 
     // 4. Obat (5 obat sesuai data skripsi CSV)
     $obatData = [
-        // [kode, nama, kategori_id, bentuk, satuan, stok, stok_min, harga, supplier_id, kadaluarsa]
-        ['OBT-A00001', 'AMLODIPIN', 1, 'Tablet', 'Tablet', 4420, 100, 1500.00, 1, '2027-06-15'],
-        ['OBT-A00002', 'CANDESARTAN', 1, 'Tablet', 'Tablet', 361, 50, 2500.00, 2, '2027-09-20'],
-        ['OBT-A00003', 'IBUPROFEN', 2, 'Tablet', 'Tablet', 761, 60, 2100.00, 1, '2027-08-10'],
-        ['OBT-A00004', 'PARASETAMOL', 2, 'Tablet', 'Tablet', 1140, 100, 1200.00, 2, '2027-12-01'],
-        ['OBT-A00005', 'PIROXICAM', 3, 'Kapsul', 'Kapsul', 1700, 50, 1800.00, 1, '2027-10-15'],
+        // [nama, kategori_id, bentuk, satuan, stok, stok_min, harga, supplier_id, kadaluarsa]
+        ['AMLODIPIN', 1, 'Tablet', 'Tablet', 4420, 100, 1500.00, 1, '2027-06-15'],
+        ['CANDESARTAN', 1, 'Tablet', 'Tablet', 361, 50, 2500.00, 2, '2027-09-20'],
+        ['IBUPROFEN', 2, 'Tablet', 'Tablet', 761, 60, 2100.00, 1, '2027-08-10'],
+        ['PARASETAMOL', 2, 'Tablet', 'Tablet', 1140, 100, 1200.00, 2, '2027-12-01'],
+        ['PIROXICAM', 3, 'Kapsul', 'Kapsul', 1700, 50, 1800.00, 1, '2027-10-15'],
     ];
 
-    $stmtObat = $pdo->prepare("INSERT INTO obat (kode_obat, nama_obat, kategori, bentuk_sediaan, satuan, stok_saat_ini, stok_minimum, harga_satuan, supplier_id, tanggal_kadaluarsa, status, created_at, updated_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())");
+    $stmtObat = $pdo->prepare("INSERT INTO obat (nama_obat, kategori, bentuk_sediaan, satuan, stok_saat_ini, stok_minimum, harga_satuan, supplier_id, tanggal_kadaluarsa, status, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())");
 
     foreach ($obatData as $o) {
         $stmtObat->execute($o);
     }
-    echo "<div class='ok'>✅ 5 obat (Amoxicillin, Cetirizine, Ibuprofen, Metformin, Omeprazole)</div>";
+    echo "<div class='ok'>✅ 5 obat (AMLODIPIN, CANDESARTAN, IBUPROFEN, PARASETAMOL, PIROXICAM)</div>";
 
     // 5. Transaksi stok awal
     $adminId = 1;
     $stmtTx = $pdo->prepare("INSERT INTO transaksi_stok (obat_id, jenis, jumlah, stok_sebelum, stok_sesudah, keterangan, user_id, tanggal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
 
     for ($i = 1; $i <= 5; $i++) {
-        $stok = $obatData[$i - 1][5]; // stok_saat_ini
+        $stok = $obatData[$i - 1][4]; // stok_saat_ini
         if ($stok > 0) {
             $stmtTx->execute([$i, 'masuk', $stok, 0, $stok, 'Stok awal sistem', $adminId, date('Y-m-d H:i:s', strtotime('-52 weeks'))]);
         }
@@ -236,11 +234,11 @@ try {
 
     // Additional sample transactions
     $sampleTx = [
-        [1, 'keluar', 30, 500, 470, 'Resep dokter - infeksi saluran napas', 1],
-        [2, 'keluar', 20, 400, 380, 'Penjualan - alergi musiman', 2],
-        [3, 'keluar', 40, 600, 560, 'Resep dokter - nyeri sendi', 1],
-        [4, 'keluar', 15, 350, 335, 'Resep dokter - diabetes tipe 2', 2],
-        [5, 'keluar', 25, 300, 275, 'Penjualan - maag kronis', 1],
+        [1, 'keluar', 30, 500, 470, 'Penjualan - Resep Hipertensi', 1],
+        [2, 'keluar', 20, 400, 380, 'Penjualan - Resep Hipertensi', 2],
+        [3, 'keluar', 40, 600, 560, 'Penjualan - Keluhan Nyeri', 1],
+        [4, 'keluar', 15, 350, 335, 'Penjualan - Demam/Pusing', 2],
+        [5, 'keluar', 25, 300, 275, 'Penjualan - Antiinflamasi', 1],
         [1, 'masuk', 200, 470, 670, 'Restock dari Kimia Farma', 1],
         [3, 'masuk', 150, 560, 710, 'Restock dari Kimia Farma', 1],
     ];

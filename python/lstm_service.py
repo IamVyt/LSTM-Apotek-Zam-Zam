@@ -83,7 +83,7 @@ def normalize_minmax(data):
 # ═══════════════════════════════════════════════════
 # CORE PREDICTION LOGIC
 # ═══════════════════════════════════════════════════
-def run_prediction_tf(hist_data, periode=4, epochs=100, lr=0.01, window_size=1):
+def run_prediction_tf(hist_data, periode=4, epochs=200, lr=0.01, window_size=4, optimizer_type='adam'):
     if not HAS_TF:
         return {'success': False, 'message': 'TensorFlow tidak terinstall. Jalankan: pip install tensorflow'}
 
@@ -96,44 +96,48 @@ def run_prediction_tf(hist_data, periode=4, epochs=100, lr=0.01, window_size=1):
     N = len(data)
 
     if N < window_size + 1:
-        return {'success': False, 'message': f'Data tidak cukup untuk window size {window_size}'}
+        return {'success': False, 'message': f'Data tidak cukup untuk window size {window_size}. Butuh minimal {window_size+1} baris.'}
 
-    # Clamp learning_rate ke rentang aman untuk Adam (cegah divergensi → NaN)
-    lr_safe = float(np.clip(lr, 1e-5, 0.01))
+    # Clamp learning_rate ke rentang aman
+    lr_safe = float(np.clip(lr, 1e-5, 0.05))
 
     # 1. Normalisasi Min-Max
     normed, mins, maxs, ranges = normalize_minmax(data)
 
     # 2. Build Sequences
     X, y = create_sequences(normed, window_size)
-    if len(X) < 2:
-        return {'success': False, 'message': 'Data terlalu sedikit untuk training (min 2 sequence).'}
-
+    
     # Split 80/20 chronological
     split = max(1, int(len(X) * 0.8))
-    if split >= len(X):
-        split = len(X) - 1
     X_train, y_train = X[:split], y[:split]
     X_test, y_test = X[split:], y[split:]
 
-    # 3. Build Model — gradient clipping cegah weight blow-up pada dataset kecil
+    # 3. Build Model — Lebih compact untuk data farmasi yang biasanya volatil
     model = Sequential([
-        LSTM(16, activation='tanh', input_shape=(window_size, 5), return_sequences=False),
-        Dense(8, activation='relu'),
+        LSTM(12, activation='tanh', input_shape=(window_size, 5), return_sequences=False),
+        Dropout(0.1),
+        Dense(6, activation='relu'),
         Dense(1)
     ])
-    optimizer = Adam(learning_rate=lr_safe, clipnorm=1.0)
-    model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
-    # 4. Training — batch_size adaptif (min 4) lebih stabil daripada batch_size=1
-    batch_size = max(4, min(16, len(X_train) // 4 or 1))
+    # Note: LSTM inherently uses BPTT (Backpropagation Through Time) for gradient calculation.
+    if optimizer_type.lower() == 'sgd':
+        # SGD (Stochastic Gradient Descent) + Momentum as requested
+        opt = tf.keras.optimizers.SGD(learning_rate=lr_safe, momentum=0.9, clipnorm=1.0)
+    else:
+        # Adam is usually more stable for multivariate time-series
+        opt = tf.keras.optimizers.Adam(learning_rate=lr_safe, clipnorm=1.0)
+        
+    model.compile(optimizer=opt, loss='mae', metrics=['mse'])
+
+    # 4. Training — batch_size = 1 seringkali lebih baik untuk dataset sangat kecil
+    batch_size = 1
 
     callbacks = [
-        EarlyStopping(monitor='loss', patience=20, restore_best_weights=True, min_delta=1e-6),
+        EarlyStopping(monitor='loss', patience=30, restore_best_weights=True, min_delta=1e-7),
         tf.keras.callbacks.TerminateOnNaN(),
     ]
 
-    # validation_data hanya jika test set cukup
     fit_kwargs = dict(epochs=epochs, batch_size=batch_size, verbose=0, callbacks=callbacks, shuffle=False)
     if len(X_test) >= 1:
         fit_kwargs['validation_data'] = (X_test, y_test)
@@ -335,14 +339,15 @@ def predict():
 
         hist = body.get('historical_data', [])
         periode = int(body.get('periode', 4))
-        epochs = int(body.get('epochs', 100))
+        epochs = int(body.get('epochs', 200))
         lr = float(body.get('learning_rate', 0.01))
-        window_size = int(body.get('window_size', 1))
+        window_size = int(body.get('window_size', 4))
+        optimizer_type = str(body.get('optimizer', 'adam'))
 
         if not hist or len(hist) < 5:
             return jsonify({'success': False, 'message': 'Data minimal 5 minggu'}), 400
 
-        result = run_prediction_tf(hist, periode, epochs, lr, window_size)
+        result = run_prediction_tf(hist, periode, epochs, lr, window_size, optimizer_type)
         # Bungkus dalam {success, data} sesuai kontrak yang dipakai api/predictions.php
         if not result.get('success', False):
             return jsonify(result), 400
@@ -361,4 +366,4 @@ if __name__ == '__main__':
     else:
         print("  WARNING: TensorFlow NOT FOUND. Please run: pip install tensorflow")
     print("="*60)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)

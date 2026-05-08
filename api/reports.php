@@ -90,7 +90,7 @@ function getTransaksiReport(PDO $db): void {
 
     $pagination = paginate($total, $perPage, $page);
 
-    $stmt = $db->prepare("SELECT t.*, o.nama_obat, o.kode_obat, u.full_name AS user_name
+    $stmt = $db->prepare("SELECT t.*, o.nama_obat, u.full_name AS user_name
                            FROM transaksi_stok t
                            JOIN obat o ON t.obat_id = o.id
                            LEFT JOIN users u ON t.user_id = u.id
@@ -142,7 +142,7 @@ function exportCSV(PDO $db): void {
     $from = inputString('from', date('Y-m-01'));
     $to = inputString('to', date('Y-m-d'));
 
-    $stmt = $db->prepare("SELECT t.tanggal, o.kode_obat, o.nama_obat, t.jenis,
+    $stmt = $db->prepare("SELECT t.tanggal, o.nama_obat, t.jenis,
                            t.jumlah, t.stok_sebelum, t.stok_sesudah, t.keterangan,
                            u.full_name AS petugas
                            FROM transaksi_stok t
@@ -159,11 +159,11 @@ function exportCSV(PDO $db): void {
     $output = fopen('php://output', 'w');
     fwrite($output, "\xEF\xBB\xBF"); // UTF-8 BOM
 
-    fputcsv($output, ['Tanggal', 'Kode Obat', 'Nama Obat', 'Jenis', 'Jumlah', 'Stok Sebelum', 'Stok Sesudah', 'Keterangan', 'Petugas']);
+    fputcsv($output, ['Tanggal', 'Nama Obat', 'Jenis', 'Jumlah', 'Stok Sebelum', 'Stok Sesudah', 'Keterangan', 'Petugas']);
 
     foreach ($rows as $row) {
         fputcsv($output, [
-            $row['tanggal'], $row['kode_obat'], $row['nama_obat'],
+            $row['tanggal'], $row['nama_obat'],
             ucfirst($row['jenis']), $row['jumlah'], $row['stok_sebelum'],
             $row['stok_sesudah'], $row['keterangan'], $row['petugas']
         ]);

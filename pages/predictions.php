@@ -18,10 +18,10 @@ $db = getDB();
 $pageTitle = 'Prediksi LSTM';
 
 // Load drug list for selector
-$obatList = $db->query("SELECT id, kode_obat, nama_obat FROM obat WHERE status = 1 ORDER BY nama_obat")->fetchAll();
+$obatList = $db->query("SELECT id, nama_obat FROM obat WHERE status = 1 ORDER BY nama_obat")->fetchAll();
 
 // Recent prediction history
-$stmtHistory = $db->query("SELECT p.*, o.nama_obat, o.kode_obat
+$stmtHistory = $db->query("SELECT p.*, o.nama_obat
                             FROM prediksi_lstm p
                             JOIN obat o ON p.obat_id = o.id
                             ORDER BY p.created_at DESC LIMIT 10");
@@ -49,6 +49,10 @@ $totalDataText  = $jmlMingguMin === $jmlMingguMax
     ? "{$jmlMingguMax} minggu × {$jmlObatAktif} obat"
     : "{$jmlMingguMin}-{$jmlMingguMax} minggu × {$jmlObatAktif} obat";
 $splitRatioText = "80/20 → Train {$trainSize} mg | Test {$testSize} mg";
+
+// Definisi Fitur (Dinamis)
+$features = ['stok_awal', 'jumlah_masuk', 'jumlah_keluar', 'stok_akhir', 'rata_rata_keluar'];
+$jmlFitur = count($features);
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -234,18 +238,15 @@ include __DIR__ . '/../includes/sidebar.php';
                             <span class="b-value">LSTM</span>
                         </div>
                         <div class="bento-item">
-                            <span class="b-label">Fitur</span>
-                            <span class="b-value">5 Multi</span>
+                            <span class="b-label">Variabel</span>
+                            <span class="b-value"><?php echo $jmlFitur; ?> Multi</span>
                         </div>
-                        <div class="bento-item">
-                            <span class="b-label">Optimizer</span>
-                            <span class="b-value">SGD+BPTT</span>
-                        </div>
+
                         <div class="bento-item">
                             <span class="b-label">Loss</span>
                             <span class="b-value">MSE</span>
                         </div>
-                        <div class="bento-item" style="grid-column: span 2;">
+                        <div class="bento-item">
                             <span class="b-label">Normalisasi</span>
                             <span class="b-value">Min-Max [0,1]</span>
                         </div>
@@ -266,14 +267,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <span class="b-label">Total Data</span>
                             <span class="b-value"><?php echo e($totalDataText); ?> (<?php echo number_format($totalRecords); ?> baris)</span>
                         </div>
-                        <div class="bento-item">
-                            <span class="b-label">Validasi</span>
-                            <span class="b-value">1-Step</span>
-                        </div>
-                        <div class="bento-item">
-                            <span class="b-label">Patience</span>
-                            <span class="b-value">15 Epochs</span>
-                        </div>
+
                         <div class="bento-item" style="grid-column: span 2; background: transparent; border: none; padding: 0; margin-top: 8px;">
                             <span class="b-label">Split Ratio</span>
                             <div class="progress-bar" style="margin-top: 4px; background: #e2e8f0 !important;">

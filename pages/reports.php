@@ -54,10 +54,12 @@ include __DIR__ . '/../includes/sidebar.php';
             <!-- Cards will be injected here -->
         </div>
         
-        <div id="emptyState" class="report-empty-state" style="display:none; padding: 60px 0;">
-            <i data-lucide="file-text" style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
-            <h3>No reports found</h3>
-            <p>Try adjusting your search or filters</p>
+        <div id="emptyState" class="report-empty-state" style="display:none; text-align: center; padding: 80px 20px;">
+            <div style="background: #f1f5f9; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px auto;">
+                <i data-lucide="file-text" style="width: 32px; height: 32px; color: #94a3b8;"></i>
+            </div>
+            <h3 style="color: #1e293b; font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Belum Ada Data</h3>
+            <p style="color: #64748b; font-size: 0.95rem;">Silakan jalankan prediksi terlebih dahulu untuk melihat laporan di sini.</p>
         </div>
     </div>
 
@@ -258,6 +260,7 @@ function renderGrid() {
         return;
     }
     
+    empty.style.display = 'none';
     grid.innerHTML = filtered.map(r => {
         const date = new Date(r.created_at).toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'});
         const time = new Date(r.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});

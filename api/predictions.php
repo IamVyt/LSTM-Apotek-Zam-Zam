@@ -81,7 +81,7 @@ function runBatchPrediction(PDO $db): void {
     if ($periode < 1 || $periode > 52) $periode = 4;
 
     // Ambil semua obat aktif
-    $obatList = $db->query("SELECT id, nama_obat, kode_obat, stok_saat_ini, stok_minimum
+    $obatList = $db->query("SELECT id, nama_obat, stok_saat_ini, stok_minimum
                             FROM obat WHERE status = 1 ORDER BY id ASC")->fetchAll();
 
     if (empty($obatList)) {
@@ -160,7 +160,6 @@ function runBatchPrediction(PDO $db): void {
         $results[] = [
             'obat_id' => $obatId,
             'nama_obat' => $obat['nama_obat'],
-            'kode_obat' => $obat['kode_obat'],
             'stok_saat_ini' => (int)$obat['stok_saat_ini'],
             'stok_minimum' => (int)$obat['stok_minimum'],
             'predictions' => $d['predictions'],
@@ -224,7 +223,7 @@ function runPrediction(PDO $db): void {
     }
 
     // Get drug info
-    $stmtObat = $db->prepare("SELECT id, nama_obat, kode_obat, stok_saat_ini FROM obat WHERE id = ?");
+    $stmtObat = $db->prepare("SELECT id, nama_obat, stok_saat_ini FROM obat WHERE id = ?");
     $stmtObat->execute([$obatId]);
     $obat = $stmtObat->fetch();
 
@@ -447,7 +446,7 @@ function getPredictionHistory(PDO $db): void {
         $params[':obat_id'] = $obatId;
     }
 
-    $stmt = $db->prepare("SELECT p.*, o.nama_obat, o.kode_obat
+    $stmt = $db->prepare("SELECT p.*, o.nama_obat
                            FROM prediksi_lstm p
                            JOIN obat o ON p.obat_id = o.id
                            WHERE {$where}

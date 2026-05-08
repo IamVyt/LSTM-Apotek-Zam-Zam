@@ -1,43 +1,44 @@
-# Sistem Prediksi Persediaan Obat (LSTM) - Apotek Zam Zam
+# 💊 Apotek Zam Zam - Sistem Prediksi Persediaan Obat (LSTM)
 
-Sistem informasi berbasis web yang menggunakan algoritma **Long Short-Term Memory (LSTM)** untuk memprediksi kebutuhan stok obat di Apotek Zam Zam. Sistem ini dirancang untuk membantu manajemen perencanaan dan pengendalian persediaan obat secara cerdas dan otomatis.
+Sistem informasi manajemen inventaris farmasi terintegrasi dengan kecerdasan buatan berbasis **Long Short-Term Memory (LSTM)** untuk memprediksi kebutuhan stok obat di masa mendatang secara akurat.
+
+![Dashboard Preview](https://img.shields.io/badge/Aesthetics-Premium-blueviolet)
+![Tech Stack](https://img.shields.io/badge/Stack-PHP%20%7C%20MySQL%20%7C%20Python%20%7C%20TensorFlow-blue)
 
 ## 🚀 Fitur Utama
-- **Dashboard Analitik**: Visualisasi stok dan tren penggunaan obat secara real-time.
-- **Prediksi LSTM**: Forecasting kebutuhan stok mingguan dengan akurasi tinggi menggunakan Deep Learning (TensorFlow/Keras).
-- **Import Data Excel**: Kemudahan input data historis langsung dari file Excel penelitian.
-- **Cetak Laporan Resmi**: Laporan hasil analisis prediksi yang siap cetak (A4) untuk kebutuhan manajerial atau dokumen skripsi.
-- **Manajemen Obat**: Pengelolaan data obat, kategori, dan stok minimum (safety stock).
+- **Prediksi Multivariate LSTM**: Memprediksi kebutuhan stok berdasarkan 5 variabel (Stok Awal, Masuk, Keluar, Stok Akhir, Rata-rata Keluar).
+- **Dashboard Interaktif**: Visualisasi data real-time dengan grafik Chart.js yang modern dan minimalist.
+- **Manajemen Inventaris**: Pengelolaan data obat, kategori, supplier, dan riwayat transaksi stok.
+- **Report Center**: Pembuatan laporan analisis prediksi otomatis dalam format cetak profesional (A4).
+- **Early Stopping & Patience**: Pelatihan model AI yang cerdas untuk menghindari overfitting dan mendapatkan akurasi terbaik.
 
-## 🛠️ Teknologi
-- **Backend**: PHP 8.x, MySQL
-- **Deep Learning Service**: Python 3.10+, TensorFlow 2.x, Flask (Microservice)
-- **Frontend**: Vanilla JS, Chart.js, Lucide Icons, CSS3 (Modern Bento UI)
-- **Database**: MariaDB/MySQL
+## 🛠️ Teknologi yang Digunakan
+- **Frontend**: HTML5, Vanilla CSS3 (Custom Design), JavaScript (ES6+), Lucide Icons.
+- **Backend**: PHP 8.x (Native), MySQL.
+- **AI Engine**: Python 3.9+, TensorFlow/Keras, NumPy, Pandas, Scikit-Learn.
+- **Charts**: Chart.js 4.x.
 
-## 📦 Instalasi
-1. Clone repositori:
+## 📋 Prasyarat Instalasi
+- Web Server (XAMPP/Laragon) dengan PHP 7.4 - 8.x.
+- Python 3.9 atau lebih baru.
+- Library Python: `tensorflow`, `numpy`, `pandas`, `scikit-learn`, `flask`, `flask-cors`.
+
+## ⚙️ Cara Instalasi
+1. **Clone Repository**:
    ```bash
-   git clone https://github.com/IamVyt/Prediksi-Apotek-LSTM.git
+   git clone https://github.com/IamVyt/LSTM-Apotek-Zam-Zam.git
    ```
-2. Import database `database.sql` ke MySQL.
-3. Sesuaikan konfigurasi di `config/config.php` dan `config/database.php`.
-4. Setup Virtual Environment Python:
-   ```bash
-   cd python
-   python -m venv venv
-   source venv/bin/activate # atau venv\Scripts\activate di Windows
-   pip install -r requirements.txt
-   ```
-5. Jalankan aplikasi melalui XAMPP atau web server lainnya.
+2. **Setup Database**:
+   - Buat database baru bernama `pharmapredictt` di phpMyAdmin.
+   - Impor file `database.sql` atau jalankan skrip `setup.php`.
+3. **Konfigurasi Python Service**:
+   - Masuk ke folder `python/`.
+   - Jalankan `start_service.bat` untuk menginisialisasi environment dan menjalankan API LSTM.
+4. **Jalankan Aplikasi**:
+   - Buka browser dan akses `http://localhost/pharmapredictt`.
 
-## 📊 Dataset
-Data yang digunakan adalah data historis mingguan dari Apotek Zam Zam, mencakup 5 fitur utama:
-1. Stok Awal
-2. Jumlah Masuk
-3. Jumlah Keluar (Target Prediksi)
-4. Stok Akhir
-5. Rata-rata Keluar
+## 📊 Analisis Residual
+Sistem dilengkapi dengan grafik analisis residual yang minimalist untuk memantau selisih antara data aktual dan hasil prediksi, membantu apoteker dalam mengevaluasi performa model AI secara visual.
 
 ---
-*Dikembangkan untuk tugas akhir/skripsi Program Studi Informatika.*
+**Developed for Apotek Zam Zam Inventory Management Optimization.**

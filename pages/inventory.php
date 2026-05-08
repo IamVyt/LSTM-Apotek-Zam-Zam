@@ -144,7 +144,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <div class="flex-between" style="flex-wrap:wrap;gap:12px;">
             <div class="search-bar">
                 <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="searchInput" placeholder="Cari nama atau kode obat..." oninput="handleSearch()">
+                <input type="text" id="searchInput" placeholder="Cari nama obat..." oninput="handleSearch()">
             </div>
         </div>
     </div>

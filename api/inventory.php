@@ -58,9 +58,8 @@ function getList(PDO $db): void {
     $params = [];
 
     if ($search !== '') {
-        $where[] = "(o.nama_obat LIKE :search1 OR o.kode_obat LIKE :search2 OR k.nama_kategori LIKE :search3)";
+        $where[] = "(o.nama_obat LIKE :search1 OR k.nama_kategori LIKE :search3)";
         $params[':search1'] = "%{$search}%";
-        $params[':search2'] = "%{$search}%";
         $params[':search3'] = "%{$search}%";
     }
 
@@ -154,9 +153,8 @@ function getHistory(PDO $db): void {
     $params = [];
 
     if ($search !== '') {
-        $where[] = "(o.nama_obat LIKE :search1 OR o.kode_obat LIKE :search2 OR k.nama_kategori LIKE :search3)";
+        $where[] = "(o.nama_obat LIKE :search1 OR k.nama_kategori LIKE :search3)";
         $params[':search1'] = "%{$search}%";
-        $params[':search2'] = "%{$search}%";
         $params[':search3'] = "%{$search}%";
     }
 
@@ -170,7 +168,7 @@ function getHistory(PDO $db): void {
     $pagination = paginate($total, $perPage, $page);
 
     // Fetch records
-    $sql = "SELECT h.*, o.nama_obat, o.kode_obat, k.nama_kategori
+    $sql = "SELECT h.*, o.nama_obat, k.nama_kategori
             FROM data_historis h
             JOIN obat o ON h.obat_id = o.id
             LEFT JOIN kategori_obat k ON o.kategori = k.id
@@ -229,14 +227,13 @@ function addObat(PDO $db, array $input): void {
         }
     }
 
-    $kodeObat = generateKodeObat();
+
 
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare("INSERT INTO obat (kode_obat, nama_obat, kategori, bentuk_sediaan, satuan, stok_saat_ini, stok_minimum, harga_satuan, supplier_id, tanggal_kadaluarsa, status, created_at, updated_at)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())");
+        $stmt = $db->prepare("INSERT INTO obat (nama_obat, kategori, bentuk_sediaan, satuan, stok_saat_ini, stok_minimum, harga_satuan, supplier_id, tanggal_kadaluarsa, status, created_at, updated_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())");
         $stmt->execute([
-            $kodeObat,
             $input['nama_obat'],
             (int)$input['kategori'],
             $input['bentuk_sediaan'],
@@ -258,7 +255,7 @@ function addObat(PDO $db, array $input): void {
         }
 
         $db->commit();
-        jsonResponse(['success' => true, 'message' => 'Obat berhasil ditambahkan', 'data' => ['id' => $obatId, 'kode_obat' => $kodeObat]]);
+        jsonResponse(['success' => true, 'message' => 'Obat berhasil ditambahkan', 'data' => ['id' => $obatId]]);
     } catch (Exception $e) {
         $db->rollBack();
         error_log("Add Obat Error: " . $e->getMessage());

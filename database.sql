@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS `supplier` (
 
 CREATE TABLE IF NOT EXISTS `obat` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `kode_obat` VARCHAR(20) NOT NULL UNIQUE,
     `nama_obat` VARCHAR(150) NOT NULL,
     `kategori` INT,
     `bentuk_sediaan` VARCHAR(50),
@@ -63,7 +62,6 @@ CREATE TABLE IF NOT EXISTS `obat` (
     `status` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_kode` (`kode_obat`),
     INDEX `idx_nama` (`nama_obat`),
     INDEX `idx_kategori` (`kategori`),
     INDEX `idx_status` (`status`),
@@ -298,7 +296,7 @@ INSERT INTO `data_historis` (`obat_id`, `tanggal`, `jumlah_keluar`, `jumlah_masu
 (3, '2026-04-20', 30, 60, 68),
 (3, '2026-04-27', 13, 0, 55),
 
--- Obat 4: Metformin 500mg (53 minggu)
+-- Obat 4: Parasetamol (53 minggu)
 (4, '2025-04-28', 30, 0, 40),
 (4, '2025-05-05', 35, 60, 65),
 (4, '2025-05-12', 29, 0, 36),

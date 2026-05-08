@@ -37,7 +37,7 @@ $chartLabels = array_map(fn($r) => 'Mg ' . date('W', strtotime($r['tgl'])), $cha
 $chartValues = array_map(fn($r) => (int) $r['total'], $chartData);
 
 // Tabel Data Historis Terbaru
-$stmtHistory = $db->query("SELECT h.*, o.nama_obat, o.kode_obat, k.nama_kategori 
+$stmtHistory = $db->query("SELECT h.*, o.nama_obat, k.nama_kategori 
                            FROM data_historis h 
                            JOIN obat o ON h.obat_id = o.id 
                            LEFT JOIN kategori_obat k ON o.kategori = k.id

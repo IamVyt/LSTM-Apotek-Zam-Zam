@@ -248,6 +248,7 @@ async function runPrediction() {
             updateTrainingStat('trainStatLoss', response.data.loss_history?.length > 0
                 ? response.data.loss_history[response.data.loss_history.length - 1].toFixed(6) : '-');
             consoleLog(`✓ Training selesai! Epoch terbaik: ${mp.epoch_terbaik || '-'}`, 'success');
+            consoleLog(`  Note: Sistem berhenti di epoch ${mp.epochs_actual} karena masa Patience (30 epoch) telah habis tanpa ada peningkatan akurasi lebih lanjut dari epoch ${mp.epoch_terbaik}.`, 'epoch');
             consoleLog(`  MAPE: ${response.data.mape}% | Akurasi: ${response.data.accuracy}%`, 'success');
             consoleLog(`  Klasifikasi: ${response.data.mape_class || '-'}`, 'success');
             consoleLog(`  Training time: ${mp.training_time_seconds || elapsed}s`, 'epoch');
@@ -303,13 +304,15 @@ function displayPredictionResults(data) {
 
     if (metricMSE) {
         const mse = (data.rmse * data.rmse) || 0;
-        metricMSE.textContent = mse.toFixed(4);
+        metricMSE.textContent = mse.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    if (metricRMSE) metricRMSE.textContent = parseFloat(data.rmse).toFixed(4);
+    if (metricRMSE) {
+        metricRMSE.textContent = parseFloat(data.rmse).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     
     if (metricMAPE) {
         const mapeVal = parseFloat(data.mape);
-        metricMAPE.textContent = mapeVal.toFixed(2) + '%';
+        metricMAPE.textContent = mapeVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
         const mapeClass = data.mape_class || '';
         
         let statusClass = 'mape-status-poor';
