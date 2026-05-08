@@ -1,0 +1,560 @@
+/**
+ * REDESIGN.CSS - ULTRA MODERN MINIMALIST (FLOATING ISLAND LAYOUT)
+ * Apotek Zam Zam - Sistem Prediksi Persediaan Obat
+ */
+
+:root {
+    /* Palette - Sleek Modern Minimalist */
+    --primary: #0f172a;        /* Slate 900 */
+    --primary-light: #334155;  /* Slate 700 */
+    --bg-main: #f1f5f9;        /* Light grayish-blue background */
+    --surface: #ffffff;        /* Pure white cards */
+    
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    
+    --border-soft: rgba(15, 23, 42, 0.06);
+    
+    /* Modern Radii - "Pill/Bento" style */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-full: 99px;
+    
+    /* Soft, elegant shadows */
+    --shadow-soft: 0 4px 24px rgba(15, 23, 42, 0.04);
+    --shadow-hover: 0 12px 32px rgba(15, 23, 42, 0.08);
+    
+    --sidebar-w: 260px;
+}
+
+body {
+    background: var(--bg-main) !important;
+    color: var(--text-main);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€ LAYOUT OVERHAUL (FLOATING) â”€â”€â”€â”€â”€â”€â”€â”€ */
+.app-wrapper {
+    display: block !important; /* Remove flex to avoid squish/overflow bugs */
+    min-height: 100vh;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* FLOATING SIDEBAR */
+.sidebar {
+    position: fixed !important;
+    top: 16px !important;
+    left: 16px !important;
+    height: calc(100vh - 32px) !important;
+    width: var(--sidebar-w) !important;
+    background: var(--surface) !important;
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border-soft) !important;
+    box-shadow: var(--shadow-soft) !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.sidebar-header {
+    border-bottom: none !important;
+    padding: 32px 24px 16px !important;
+}
+
+.logo-icon {
+    border-radius: 12px !important;
+    background: var(--primary) !important;
+    width: 44px !important; 
+    height: 44px !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2) !important;
+}
+
+.logo-title {
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    color: var(--text-main) !important;
+}
+
+.logo-subtitle {
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+}
+
+.nav-section-title {
+    margin: 24px 24px 8px !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    color: #94a3b8 !important;
+}
+
+.nav-link {
+    margin: 4px 16px !important;
+    padding: 12px 16px !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+    transition: all 0.2s ease !important;
+}
+
+.nav-link:hover {
+    background: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    transform: translateX(4px);
+}
+
+.nav-link.active {
+    background: var(--primary) !important;
+    color: white !important;
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.15) !important;
+}
+.nav-link.active svg, .nav-link.active i {
+    color: white !important;
+}
+
+.sidebar-footer {
+    border-top: none !important;
+    padding: 16px !important;
+    margin-top: auto;
+}
+.sidebar-user {
+    background: var(--bg-main) !important;
+    border: none !important;
+    border-radius: 16px !important;
+    padding: 12px !important;
+}
+.user-avatar {
+    border-radius: 10px !important;
+    background: #e2e8f0 !important;
+    color: var(--primary) !important;
+    font-weight: 800 !important;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    position: relative !important;
+    margin-left: 300px !important; /* 260px sidebar + 40px gap */
+    padding: 32px 40px 64px 0 !important; /* Right/Bottom padding. Left is handled by margin */
+    min-height: 100vh !important;
+    width: calc(100% - 340px) !important; /* 100% minus margin-left minus padding-right */
+    max-width: none !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 1024px) {
+    .sidebar { width: 220px !important; }
+    .main-content { margin-left: 250px !important; width: calc(100% - 290px) !important; padding-right: 20px !important; }
+}
+
+@media (max-width: 768px) {
+    .sidebar { left: -100% !important; border-radius: 0 !important; height: 100vh !important; top: 0 !important; width: 260px !important; }
+    .main-content { margin-left: 0 !important; width: 100% !important; padding: 80px 20px 40px 20px !important; }
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€ COMPONENTS â”€â”€â”€â”€â”€â”€â”€â”€ */
+.page-header {
+    margin-bottom: 40px !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+}
+.page-header h1 {
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.04em !important;
+    color: var(--text-main) !important;
+}
+.page-header .subtitle {
+    font-size: 0.95rem !important;
+    color: var(--text-muted) !important;
+    margin-top: 4px !important;
+}
+
+/* CARDS (Bento Box Style) */
+.card {
+    background: var(--surface) !important;
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border-soft) !important;
+    box-shadow: var(--shadow-soft) !important;
+    padding: 28px !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.card:hover {
+    box-shadow: var(--shadow-hover) !important;
+}
+.card-header {
+    padding: 0 0 20px 0 !important;
+    border-bottom: 1px solid var(--border-soft) !important;
+    margin-bottom: 24px !important;
+    background: transparent !important;
+}
+.card-header h2, .card-header h3 {
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    color: var(--text-main) !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.card > div:not(.card-header):not(.chart-container):not(.table-container) {
+    padding: 0 !important;
+}
+
+/* STAT CARDS */
+.stat-card {
+    background: var(--surface) !important;
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border-soft) !important;
+    padding: 24px 28px !important;
+    box-shadow: var(--shadow-soft) !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.stat-card::before { display: none !important; }
+.stat-card-header { margin-bottom: 16px !important; padding: 0 !important; border: none !important; }
+.stat-card-icon {
+    width: 48px !important; 
+    height: 48px !important;
+    border-radius: 14px !important;
+    background: var(--bg-main) !important;
+    border: none !important;
+    color: var(--primary) !important;
+}
+.stat-card-label {
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+.stat-card-value {
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.04em !important;
+    color: var(--text-main) !important;
+    margin-bottom: 8px !important;
+}
+
+/* BUTTONS (Pill Style) */
+.btn {
+    border-radius: var(--radius-full) !important;
+    padding: 10px 24px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+.btn-primary {
+    background: var(--primary) !important;
+    color: white !important;
+    border: none !important;
+}
+.btn-primary:hover {
+    background: var(--primary-light) !important;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.2) !important;
+    transform: translateY(-2px) !important;
+}
+.btn-secondary {
+    background: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    border: 1px solid transparent !important;
+}
+.btn-secondary:hover {
+    background: #e2e8f0 !important;
+}
+
+/* TABLES */
+.table-container { 
+    border-radius: var(--radius-md) !important; 
+    overflow: hidden; 
+    border: 1px solid var(--border-soft) !important; 
+    margin: 0 !important;
+}
+.data-table {
+    margin: 0 !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+}
+.data-table thead th {
+    background: #f8fafc !important;
+    text-transform: uppercase !important;
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    padding: 14px 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #64748b !important;
+}
+.data-table tbody td {
+    padding: 14px 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    font-size: 0.85rem !important;
+    color: var(--text-main);
+}
+.data-table tbody tr:hover td {
+    background: #f8fafc !important;
+}
+
+/* Sticky Header Support */
+.table-container {
+    position: relative;
+}
+.data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc !important; /* Ensure background is solid for sticky effect */
+}
+
+/* INPUTS */
+.form-control, select.form-control, input.form-control {
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+    border: 1px solid var(--border-soft) !important;
+    padding: 12px 16px !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    box-shadow: none !important;
+    color: var(--text-main) !important;
+}
+.form-control:focus {
+    background: white !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(15,23,42,0.06) !important;
+}
+.form-label {
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    margin-bottom: 8px !important;
+    color: var(--text-main) !important;
+    text-transform: none !important;
+}
+
+/* STEPPER */
+.prediction-stepper { 
+    background: var(--surface) !important; 
+    padding: 24px 32px !important; 
+    border-radius: var(--radius-lg) !important; 
+    box-shadow: var(--shadow-soft) !important; 
+    border: 1px solid var(--border-soft) !important;
+    margin-bottom: 32px !important; 
+}
+.stepper-icon { 
+    width: 48px !important; 
+    height: 48px !important; 
+    border-radius: 16px !important; 
+    background: var(--bg-main) !important; 
+    border: none !important; 
+    box-shadow: none !important;
+    animation: none !important;
+}
+.stepper-step.active .stepper-icon { 
+    background: var(--primary) !important; 
+    color: white !important; 
+    border: none !important;
+}
+.stepper-progress-line { 
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.7)) !important; 
+    height: 3px !important; 
+    box-shadow: 0 0 8px rgba(15, 23, 42, 0.15) !important;
+}
+.stepper-step.completed .stepper-icon {
+    background: var(--primary) !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* IMPORT DROPZONE */
+.import-drop-zone {
+    border-radius: var(--radius-lg) !important;
+    border: 2px dashed #cbd5e1 !important;
+    background: #f8fafc !important;
+    padding: 48px 24px !important;
+    transition: all 0.2s ease !important;
+}
+.import-drop-zone:hover { 
+    border-color: var(--primary) !important; 
+    background: #f1f5f9 !important;
+}
+
+/* METRICS BORDERED (Predictions page) */
+.metric-card-bordered {
+    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--border-soft) !important;
+    background: #f8fafc !important;
+    padding: 24px !important;
+}
+.metric-card-bordered h4 {
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: var(--text-muted) !important;
+}
+.metric-card-bordered .metric-value {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    color: var(--text-main) !important;
+    margin-top: 4px !important;
+}
+
+/* BADGES */
+.badge, .badge-aman, .badge-success { background: #f1f5f9 !important; color: var(--text-main) !important; padding: 6px 12px !important; border-radius: var(--radius-full) !important; font-weight: 600 !important; border: 1px solid var(--border-soft) !important; }
+.badge-warning { background: #fffbeb !important; color: #b45309 !important; border: 1px solid #fef3c7 !important; padding: 6px 12px !important; border-radius: var(--radius-full) !important; font-weight: 600 !important; }
+.badge-danger { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fee2e2 !important; padding: 6px 12px !important; border-radius: var(--radius-full) !important; font-weight: 600 !important; }
+
+/* MAPE BADGES */
+.mape-class-sangat-baik { background: #f8fafc !important; color: var(--primary) !important; border: 1px solid var(--border-soft) !important; }
+.mape-class-baik { background: #f8fafc !important; color: var(--primary) !important; border: 1px solid var(--border-soft) !important; }
+.mape-class-cukup { background: #fffbeb !important; color: #b45309 !important; border: 1px solid #fef3c7 !important; }
+.mape-class-kurang { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fee2e2 !important; }
+
+/* PROGRESS BAR */
+.progress-bar { background: var(--bg-main) !important; border-radius: var(--radius-full) !important; height: 8px !important; }
+.progress-bar-fill { background: var(--primary) !important; border-radius: var(--radius-full) !important; }
+
+/* MODALS */
+.modal { border-radius: var(--radius-lg) !important; border: none !important; box-shadow: 0 24px 48px rgba(0,0,0,0.1) !important; }
+.modal-header { padding: 24px !important; border-bottom: 1px solid var(--border-soft) !important; }
+.modal-body { padding: 24px !important; }
+.modal-footer { padding: 24px !important; border-top: 1px solid var(--border-soft) !important; background: #f8fafc !important; }
+
+/* 2-COLUMN LAYOUT FOR PREDICTION RESULTS */
+.result-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 24px;
+}
+.result-col-left, .result-col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.result-grid-2 .card.mb-3 {
+    margin-bottom: 0 !important; /* Gap is handled by flex/grid */
+}
+
+@media (max-width: 1024px) {
+    .result-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* REKOMENDASI STAT NUMBERS */
+.rekomendasi-stat-value {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+}
+.status-tinggi .rekomendasi-stat-value {
+    color: #ef4444 !important; /* Merah untuk tinggi */
+}
+.status-rendah .rekomendasi-stat-value, .status-normal .rekomendasi-stat-value {
+    color: #10b981 !important; /* Hijau untuk rendah/normal */
+}
+
+/* ──────── BENTO INFO CARDS ──────── */
+.bento-card {
+    background: #ffffff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bento-card:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.bento-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.bento-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bento-header h3 {
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    color: var(--text-main) !important;
+    margin: 0 0 4px 0 !important;
+}
+
+.bento-header p {
+    font-size: 0.8rem !important;
+    color: var(--text-muted) !important;
+    margin: 0 !important;
+}
+
+.bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bento-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.bento-item .b-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.bento-item .b-value {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.bento-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed #cbd5e1;
+    text-align: center;
+}
+
+.bento-footer a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #3b82f6;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.bento-footer a:hover {
+    color: #2563eb;
+}

@@ -1,0 +1,310 @@
+/* ============================================================
+   Apotek Zam Zam - Login Page Styles
+   Split-screen layout with gradient left panel
+   ============================================================ */
+
+.login-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-gradient);
+}
+
+/* ──────── Left Panel - Branding ──────── */
+.login-panel-left {
+    flex: 1;
+    background: var(--primary); /* Deep Slate */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-panel-left::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    top: -100px;
+    right: -100px;
+}
+
+.login-panel-left::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    bottom: -50px;
+    left: -50px;
+}
+
+/* Floating orbs */
+.login-panel-left .orb {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    animation: floatOrb 8s ease-in-out infinite;
+}
+
+.login-panel-left .orb:nth-child(1) {
+    width: 200px; height: 200px;
+    top: 10%; left: 60%;
+    animation-delay: 0s;
+}
+
+.login-panel-left .orb:nth-child(2) {
+    width: 150px; height: 150px;
+    top: 60%; left: 10%;
+    animation-delay: 2s;
+}
+
+.login-panel-left .orb:nth-child(3) {
+    width: 100px; height: 100px;
+    top: 30%; left: 20%;
+    animation-delay: 4s;
+}
+
+@keyframes floatOrb {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.login-brand {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.login-brand-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+}
+
+.login-brand-icon svg {
+    width: 40px;
+    height: 40px;
+    color: white;
+    stroke: white;
+}
+
+.login-brand h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+}
+
+.login-brand p {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 400;
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+.login-features {
+    margin-top: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.login-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.login-feature-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.login-feature-icon svg {
+    width: 18px;
+    height: 18px;
+    color: white;
+    stroke: white;
+}
+
+/* ──────── Right Panel - Form ──────── */
+.login-panel-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+}
+
+.login-form-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-form-header {
+    margin-bottom: 32px;
+}
+
+.login-form-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.login-form-header p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.login-form .form-group {
+    margin-bottom: 20px;
+}
+
+.login-form .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.login-form .form-control {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+}
+
+.login-form .input-with-icon {
+    position: relative;
+}
+
+.login-form .input-with-icon .form-control {
+    padding-left: 44px !important;
+}
+
+.login-form .input-with-icon #password {
+    padding-right: 44px !important;
+}
+
+.login-form .input-with-icon .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    width: 20px;
+    height: 20px;
+}
+
+.login-form .input-with-icon .toggle-password {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.login-form .form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.login-form .remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.login-form .remember-me input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}
+
+.login-form .btn-login {
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+}
+
+.login-error {
+    background: var(--badge-kritis-bg);
+    color: var(--badge-kritis-text);
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: fadeIn 0.3s ease;
+}
+
+.login-error svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* ──────── Responsive ──────── */
+@media (max-width: 768px) {
+    .login-wrapper {
+        flex-direction: column;
+    }
+
+    .login-panel-left {
+        padding: 32px 24px;
+        min-height: auto;
+    }
+
+    .login-features {
+        display: none;
+    }
+
+    .login-panel-right {
+        padding: 32px 24px;
+    }
+
+    .login-brand h1 {
+        font-size: 1.6rem;
+    }
+}

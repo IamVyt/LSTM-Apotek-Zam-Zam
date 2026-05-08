@@ -1,0 +1,64 @@
+# Apotek Zam Zam - Apache .htaccess
+# Security rules and URL handling
+
+# Prevent directory listing
+Options -Indexes
+
+# Follow symbolic links
+Options +FollowSymLinks
+
+# Deny access to sensitive directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Deny access to config directory
+    RewriteRule ^config/ - [F,L]
+
+    # Deny access to includes directory
+    RewriteRule ^includes/ - [F,L]
+
+    # Deny access to lstm directory
+    RewriteRule ^lstm/ - [F,L]
+
+    # Deny access to .htaccess itself
+    RewriteRule \.htaccess$ - [F,L]
+
+    # Deny access to setup.php in production (remove this line during setup)
+    # RewriteRule ^setup\.php$ - [F,L]
+</IfModule>
+
+# Deny access to hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# PHP settings
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value session.cookie_httponly 1
+    php_value session.use_strict_mode 1
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+</IfModule>

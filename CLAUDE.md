@@ -1,0 +1,1 @@
+Folder ini berisi website atau sistem saya untuk perhitungan LSTM

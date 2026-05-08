@@ -1,0 +1,728 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+/* Print overrides */
+@media print {
+    body { background: white !important; margin: 0 !important; padding: 0 !important; width: 210mm; height: 297mm; }
+    body * { visibility: hidden; }
+    
+    /* Hide everything that is NOT the print area */
+    .sidebar, .top-header, .page-header, .print-hidden, .filter-tabs, .report-controls, .report-header-section, .report-grid { 
+        display: none !important; 
+    }
+    
+    /* Ensure the modal and its parents don't block the print area */
+    .report-modal, .report-modal-content, .main-content {
+        visibility: visible !important;
+        display: block !important;
+        position: static !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        overflow: visible !important;
+        transform: none !important;
+        width: 210mm !important;
+        height: auto !important;
+    }
+    
+    .report-modal-content::before, .report-modal-content::after {
+        display: none !important;
+    }
+
+    #print-area, #print-area * { 
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    
+    #print-area { 
+        position: absolute; 
+        left: 0; top: 0; 
+        width: 210mm !important; 
+        min-height: 297mm !important;
+        margin: 0 !important; 
+        padding: 10mm 15mm !important; /* Minimized padding for single page fit */
+        box-shadow: none !important;
+        border: none !important;
+        background: white !important;
+    }
+    
+    @page { 
+        size: A4; 
+        margin: 0; 
+    }
+}
+
+/* A4 Paper Layout */
+.a4-paper {
+    width: 210mm;
+    min-height: 297mm;
+    background: white;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    padding: 25mm;
+    color: #0f172a;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    position: relative;
+    margin: 0 auto;
+}
+
+/* ──────── Kop Surat ──────── */
+.kop-surat {
+    border-bottom: 2px solid #1e293b;
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+    position: relative;
+}
+
+.kop-surat::after {
+    display: none;
+}
+
+.kop-content {
+    display: grid;
+    grid-template-columns: 90px 1fr 90px;
+    align-items: center;
+}
+
+.kop-logo {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.kop-logo-box {
+    width: 80px;
+    height: 80px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1d9e75;
+}
+
+.kop-text {
+    flex: 1;
+    text-align: center;
+}
+
+.kop-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+.kop-subtitle {
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 4px 0 8px 0;
+}
+
+.kop-contact {
+    font-size: 11px;
+    line-height: 1.5;
+    font-family: Arial, sans-serif;
+}
+
+/* ──────── Document Title ──────── */
+.doc-title {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.doc-title h2 {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+}
+
+.doc-title p {
+    font-size: 12px;
+    font-family: "Courier New", monospace;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ──────── Document Body ──────── */
+.doc-body {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #334155;
+    text-align: justify;
+}
+
+.doc-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-left: 3px solid #1d9e75;
+    padding-left: 8px;
+    margin: 28px 0 16px 0;
+    color: #1e293b;
+}
+
+/* ──────── Params Grid ──────── */
+.params-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin: 24px 0;
+}
+
+.param-box {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px 20px;
+}
+
+.param-table {
+    width: 100%;
+    font-size: 12px;
+}
+
+.param-table td {
+    padding: 8px 0;
+    border-bottom: 1px dashed #cbd5e1;
+}
+
+.param-table tr:last-child td {
+    border-bottom: none;
+}
+
+.param-table td:first-child {
+    opacity: 0.7;
+    width: 120px;
+}
+
+/* ──────── Performance Grid ──────── */
+.perf-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.perf-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.perf-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    opacity: 1;
+}
+
+.perf-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-top: 6px;
+}
+
+/* ──────── Chart ──────── */
+.chart-box {
+    height: 250px;
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+    background: #ffffff;
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    font-size: 9px;
+    text-transform: uppercase;
+    margin-top: -8px;
+    margin-bottom: 24px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-line {
+    width: 12px;
+    height: 2px;
+}
+
+.legend-dashed {
+    border-top: 2px dashed #999;
+}
+
+.legend-solid {
+    background: black;
+}
+
+/* ──────── Print Data Table ──────── */
+.data-table-print {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: "Inter", Arial, sans-serif;
+    font-size: 12px;
+    margin-bottom: 24px;
+}
+
+.data-table-print th,
+.data-table-print td {
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    padding: 10px 14px;
+}
+
+.data-table-print th:last-child,
+.data-table-print td:last-child {
+    border-right: none;
+}
+
+.data-table-print tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table-print th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+}
+
+/* ──────── Signatures ──────── */
+.signatures {
+    margin-top: 60px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+}
+
+.signature-box {
+    text-align: center;
+}
+
+.signature-box .role {
+    font-size: 12px;
+    margin-bottom: 80px;
+}
+
+.signature-box .role.italic {
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.signature-box .name {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-family: Arial, sans-serif;
+}
+
+.signature-box .nip {
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+.signature-line {
+    width: 160px;
+    border-bottom: 1px solid black;
+    margin: 0 auto 8px auto;
+}
+
+/* ============================================================
+   Report Center Dashboard Styles
+   ============================================================ */
+
+.report-center-container {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.report-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.report-header-section h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.report-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.search-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.search-wrapper i {
+    position: absolute;
+    left: 18px;
+    color: #64748b;
+    pointer-events: none;
+    z-index: 10;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-input {
+    width: 100%;
+    padding: 14px 20px 14px 50px;
+    background: white;
+    border: 2px solid #f1f5f9;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #0f172a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.search-input::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.sort-select {
+    padding: 10px 40px 10px 16px;
+    background: white;
+    border: 2px solid #f1f5f9;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    min-width: 170px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sort-select:hover {
+    border-color: #e2e8f0;
+}
+
+.sort-select:hover, .search-input:hover {
+    border-color: #e2e8f0;
+    background: white;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.filter-tab {
+    padding: 8px 20px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.filter-tab:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.filter-tab.active {
+    background: #0f172a;
+    color: white;
+    border-color: #0f172a;
+}
+
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.report-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.report-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+.report-card-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.status-indicator {
+    width: 6px;
+    height: 6px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.status-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: #059669;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.report-card-chart {
+    height: 120px;
+    margin-bottom: 20px;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 10px;
+    position: relative;
+}
+
+.report-card-info {
+    margin-bottom: 20px;
+}
+
+.report-card-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+}
+
+.report-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.accuracy-tag {
+    background: #f0fdf4;
+    color: #166534;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    margin-left: auto;
+    font-size: 0.75rem;
+}
+
+.report-card-btn {
+    width: 100%;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.report-card-btn:hover {
+    background: #0f172a;
+    color: white;
+    border-color: #0f172a;
+}
+
+/* Modal for Report Detail */
+.report-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.report-modal-content {
+    background: #f1f5f9;
+    margin: 0 auto;
+    width: fit-content;
+    border-radius: 16px;
+    position: relative;
+}
+
+.report-modal-close {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    background: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: none;
+    z-index: 1;
+}
+
+/* Enhanced A4 Styles for Image 2 */
+.a4-paper {
+    background: white;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Stacked effect */
+.report-modal-content::before,
+.report-modal-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: -1;
+}
+
+.report-modal-content::before {
+    transform: rotate(-1.5deg) translate(-5px, -5px);
+}
+
+.report-modal-content::after {
+    transform: rotate(1.5deg) translate(5px, 5px);
+}
+
+.kop-surat {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.kop-logo img {
+    filter: contrast(1.1);
+}
+
+.kop-contact-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #475569;
+}
+
+.data-table-print thead th {
+    background: #0f172a;
+    color: white;
+}
+
+.signature-badge {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e293b;
+    display: inline-block;
+    margin-top: 20px;
+}
