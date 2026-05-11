@@ -107,7 +107,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th>Email</th>
                             <th>Role</th>
                             <th>Status</th>
-                            <th>Aksi</th>
+                            <th style="width: 1%; white-space: nowrap; text-align: center; text-transform: none;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="usersBody">
@@ -261,21 +261,28 @@ async function loadUsers() {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada user</td></tr>';
             return;
         }
-        tbody.innerHTML = data.data.map(u => `
+        tbody.innerHTML = data.data.map(u => {
+            const escapedName = escapeHtml(u.full_name).replace(/'/g, "\\'");
+            return `
             <tr>
                 <td class="fw-600">${escapeHtml(u.full_name)}</td>
                 <td>${escapeHtml(u.username)}</td>
                 <td class="text-sm">${escapeHtml(u.email)}</td>
                 <td><span class="badge badge-purple">${escapeHtml(u.role)}</span></td>
                 <td><span class="badge ${u.status == 1 ? 'badge-aman' : 'badge-kritis'}">${u.status == 1 ? 'Aktif' : 'Nonaktif'}</span></td>
-                <td>
-                    <div class="action-cell">
-                        <button class="btn btn-icon btn-ghost" onclick="editUser(${u.id})" title="Edit"><i data-lucide="pencil"></i></button>
-                        <button class="btn btn-icon btn-ghost" onclick="deleteUser(${u.id}, '${escapeHtml(u.full_name)}')" title="Hapus" style="color:#EF4444;"><i data-lucide="trash-2"></i></button>
+                <td style="white-space: nowrap; text-align: center;">
+                    <div class="action-cell" style="justify-content: center; gap: 6px;">
+                        <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})" title="Edit User" style="padding: 5px 12px; font-size: 0.75rem; border: 1px solid rgba(15, 23, 42, 0.08);">
+                            <i data-lucide="pencil" style="width:14px;height:14px;"></i> <span>Edit</span>
+                        </button>
+                        <button class="btn btn-sm" onclick="deleteUser(${u.id}, '${escapedName}')" title="Hapus User" style="color:#ef4444; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.12); padding: 5px 12px; font-size: 0.75rem;">
+                            <i data-lucide="trash-2" style="width:14px;height:14px;"></i> <span>Hapus</span>
+                        </button>
                     </div>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
         if (window.lucide) lucide.createIcons();
     } catch (err) { console.error(err); }
 }

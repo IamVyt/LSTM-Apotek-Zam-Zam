@@ -458,15 +458,20 @@ include __DIR__ . '/../includes/sidebar.php';
                                 ?>
                             </td>
                             <td class="text-center">
-                                <span class="badge <?php echo (float)$p['mape'] <= 20 ? 'badge-success' : 'badge-warning'; ?>">
+                                <span class="badge <?php echo (float)$p['mape'] <= 20 ? 'badge-aman' : 'badge-waspada'; ?>">
                                     <?php echo number_format($p['mape'], 2); ?>%
                                 </span>
                             </td>
                             <td class="text-center fw-600" style="color:#ef4444;"><?php echo number_format($p['rmse'], 2); ?></td>
                             <td class="text-center">
-                                <button class="btn btn-sm" style="color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; padding: 6px 12px;" onclick="deleteHistory(<?php echo $p['id']; ?>)" title="Hapus Riwayat">
-                                    <i data-lucide="trash-2" class="icon-14"></i> Hapus
-                                </button>
+                                <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                                    <button class="btn btn-sm" style="color:#3b82f6; background:#eff6ff; border:1px solid #dbeafe; padding: 6px 12px;" onclick="viewHistory(<?php echo $p['id']; ?>)" title="Lihat Detail Hasil">
+                                        <i data-lucide="eye" class="icon-14"></i> Lihat
+                                    </button>
+                                    <button class="btn btn-sm" style="color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; padding: 6px 12px;" onclick="deleteHistory(<?php echo $p['id']; ?>)" title="Hapus Riwayat">
+                                        <i data-lucide="trash-2" class="icon-14"></i> Hapus
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -479,7 +484,124 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
+    <!-- ═══════ MODAL: LIHAT DETAIL RIWAYAT PREDIKSI ═══════ -->
+    <div class="modal-overlay" id="historyDetailModal">
+        <div class="modal" style="max-width: 900px; width: 95%;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #eff6ff, #f0fdf4); border-bottom: 1px solid #e2e8f0;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,#3b82f6,#1d9e75); display:flex; align-items:center; justify-content:center; color:white;">
+                        <i data-lucide="file-bar-chart" style="width:20px; height:20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem;">Detail Hasil Prediksi</h3>
+                        <p id="historyModalSubtitle" style="margin:0; font-size:0.78rem; color:var(--text-muted);">Memuat...</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeModal('historyDetailModal')">
+                    <i data-lucide="x" style="width:18px; height:18px;"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:20px; max-height:75vh; overflow-y:auto;">
+                <!-- Loading state -->
+                <div id="historyDetailLoading" style="text-align:center; padding:48px;">
+                    <div class="spinner" style="width:32px; height:32px; border-width:3px; margin:0 auto 16px;"></div>
+                    <p style="color:var(--text-muted); font-size:0.9rem;">Memuat data riwayat...</p>
+                </div>
+
+                <!-- Content (hidden until loaded) -->
+                <div id="historyDetailContent" style="display:none;">
+                    <!-- Summary Info Cards -->
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px;" id="historyMetricsGrid">
+                        <div class="metric-card-bordered border-blue" style="padding:14px; text-align:center;">
+                            <h4 style="font-size:0.65rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Epochs</h4>
+                            <div id="histDetailEpochs" style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">-</div>
+                        </div>
+                        <div class="metric-card-bordered border-purple" style="padding:14px; text-align:center;">
+                            <h4 style="font-size:0.65rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Learning Rate</h4>
+                            <div id="histDetailLR" style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">-</div>
+                        </div>
+                        <div class="metric-card-bordered border-orange" style="padding:14px; text-align:center;">
+                            <h4 style="font-size:0.65rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">RMSE</h4>
+                            <div id="histDetailRMSE" style="font-size:1.1rem; font-weight:700; color:#ef4444;">-</div>
+                        </div>
+                        <div class="metric-card-bordered border-green" style="padding:14px; text-align:center;">
+                            <h4 style="font-size:0.65rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">MAPE</h4>
+                            <div id="histDetailMAPE" style="font-size:1.1rem; font-weight:700; color:var(--primary);">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="card mb-3" style="border:1px solid var(--border-color);">
+                        <div class="card-header" style="padding:14px 18px;">
+                            <h3 style="font-size:0.85rem; margin:0;"><i data-lucide="trending-up" class="icon-16 icon-inline"></i> Grafik Prediksi vs Aktual</h3>
+                        </div>
+                        <div class="chart-container" style="height:280px; padding:12px;">
+                            <canvas id="historyDetailChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Validation Table -->
+                    <div class="card" style="border:1px solid var(--border-color);" id="historyValidationSection">
+                        <div class="card-header" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="font-size:0.85rem; margin:0;"><i data-lucide="table-2" class="icon-16 icon-inline"></i> Hasil Prediksi vs Aktual</h3>
+                        </div>
+                        <div class="table-container" style="max-height:280px; overflow-y:auto; border:none;">
+                            <table class="data-table">
+                                <thead style="position:sticky; top:0; z-index:10;">
+                                    <tr>
+                                        <th style="width:50px;">No</th>
+                                        <th>Periode</th>
+                                        <th>Tanggal</th>
+                                        <th class="text-right">Aktual</th>
+                                        <th class="text-right">Prediksi</th>
+                                        <th class="text-right">Selisih</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyValidationBody">
+                                    <tr><td colspan="6" class="text-center text-muted">Tidak ada data</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Future Predictions Table -->
+                    <div class="card mt-3" style="border:1px solid var(--border-color);" id="historyFutureSection">
+                        <div class="card-header" style="padding:14px 18px;">
+                            <h3 style="font-size:0.85rem; margin:0;"><i data-lucide="calendar-plus" class="icon-16 icon-inline"></i> Prediksi Masa Depan</h3>
+                        </div>
+                        <div class="table-container" style="border:none;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:50px;">No</th>
+                                        <th>Periode</th>
+                                        <th class="text-right">Prediksi (Unit)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyFutureBody">
+                                    <tr><td colspan="3" class="text-center text-muted">Tidak ada data</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Rekomendasi Tindakan -->
+                    <div class="card mt-3" style="border:1px solid var(--border-color);" id="historyRekomendasiSection">
+                        <div class="card-header" style="padding:14px 18px;">
+                            <h3 style="font-size:0.85rem; margin:0;">💊 Rekomendasi Tindakan untuk Apoteker</h3>
+                        </div>
+                        <div id="historyRekomendasiContent" style="padding:0;">
+                            <!-- Diisi oleh JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </main>
+
+</div><!-- end app-wrapper -->
 
 <?php
 // Cache-busting: filemtime() bikin URL berubah otomatis ketika file di-update

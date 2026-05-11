@@ -186,7 +186,6 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <script src="<?php echo BASE_URL; ?>/assets/js/main.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 let reportsData = [];
 let chartInstance = null;
@@ -236,7 +235,7 @@ function renderGrid() {
         } else if (filter === 'high') {
             matchesFilter = parseFloat(r.akurasi) >= 80;
         } else if (filter === 'low') {
-            matchesFilter = parseFloat(r.akurasi) < 50;
+            matchesFilter = parseFloat(r.akurasi) < 80;
         }
         
         return matchesSearch && matchesFilter;

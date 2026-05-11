@@ -696,3 +696,173 @@ function deleteAllHistory() {
         alert('Terjadi kesalahan koneksi saat menghapus riwayat.');
     });
 }
+
+// ═══════════════════════════════════════════════════
+// VIEW HISTORY DETAIL (Read-only modal)
+// ═══════════════════════════════════════════════════
+let historyDetailChartInstance = null;
+
+async function viewHistory(id) {
+    // Open modal & show loading
+    openModal('historyDetailModal');
+    const loading = document.getElementById('historyDetailLoading');
+    const content = document.getElementById('historyDetailContent');
+    const subtitle = document.getElementById('historyModalSubtitle');
+    
+    if (loading) loading.style.display = 'block';
+    if (content) content.style.display = 'none';
+    if (subtitle) subtitle.textContent = 'Memuat...';
+
+    // Destroy previous chart if exists
+    if (historyDetailChartInstance) {
+        historyDetailChartInstance.destroy();
+        historyDetailChartInstance = null;
+    }
+
+    try {
+        const response = await fetchAPI(`${BASE_URL}/api/predictions.php?action=detail&id=${id}`, {
+            method: 'GET',
+            timeout: 15000
+        });
+
+        if (!response.success) {
+            showToast(response.message || 'Gagal memuat detail', 'error');
+            closeModal('historyDetailModal');
+            return;
+        }
+
+        const d = response.data;
+
+        // Update subtitle
+        if (subtitle) {
+            const dateStr = new Date(d.created_at).toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            subtitle.textContent = `${d.nama_obat} — ${dateStr}`;
+        }
+
+        // Update metric cards
+        const mp = d.model_params || {};
+        setText('histDetailEpochs', mp.epochs_actual || '-');
+        setText('histDetailLR', mp.learning_rate || '-');
+        setText('histDetailRMSE', parseFloat(d.rmse).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        
+        const mapeVal = parseFloat(d.mape);
+        const mapeEl = document.getElementById('histDetailMAPE');
+        if (mapeEl) {
+            mapeEl.textContent = mapeVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+            mapeEl.style.color = mapeVal < 10 ? '#10b981' : mapeVal < 20 ? '#1d9e75' : mapeVal < 50 ? '#f59e0b' : '#ef4444';
+        }
+
+        // Render chart
+        const chartCanvas = document.getElementById('historyDetailChart');
+        if (chartCanvas && d.historical_labels && d.historical_values) {
+            historyDetailChartInstance = createPredictionChart('historyDetailChart', {
+                labels: d.historical_labels,
+                values: d.historical_values
+            }, {
+                labels: d.prediction_labels || [],
+                values: d.prediction_values || []
+            });
+        }
+
+        // Render validation table
+        const valBody = document.getElementById('historyValidationBody');
+        const valSection = document.getElementById('historyValidationSection');
+        if (valBody && d.validation_detail && d.validation_detail.length > 0) {
+            if (valSection) valSection.style.display = 'block';
+            valBody.innerHTML = d.validation_detail.map((item, idx) => {
+                const selisih = Math.abs(item.error || (item.aktual - item.prediksi)).toFixed(2);
+                const tgl = item.tanggal_mulai || '-';
+                return `<tr>
+                    <td class="text-center cell-muted">${idx + 1}</td>
+                    <td class="fw-600">Mg ${item.minggu || (idx + 1)}</td>
+                    <td>${tgl}</td>
+                    <td class="text-right fw-600" style="color:#ef4444;">${Math.round(item.aktual)}</td>
+                    <td class="text-right fw-600" style="color:#10b981;">${Math.round(item.prediksi)}</td>
+                    <td class="text-right cell-muted">${selisih}</td>
+                </tr>`;
+            }).join('');
+        } else {
+            if (valSection) valSection.style.display = 'none';
+        }
+
+        // Render future predictions table
+        const futBody = document.getElementById('historyFutureBody');
+        const futSection = document.getElementById('historyFutureSection');
+        if (futBody && d.prediction_values && d.prediction_values.length > 0) {
+            if (futSection) futSection.style.display = 'block';
+            futBody.innerHTML = d.prediction_values.map((val, idx) => {
+                const label = (d.prediction_labels && d.prediction_labels[idx]) || `Mg N+${idx + 1}`;
+                return `<tr class="row-future">
+                    <td class="text-center cell-muted">${idx + 1}</td>
+                    <td class="fw-600">${label} <span class="badge badge-aman" style="font-size:9px;margin-left:4px;">Future</span></td>
+                    <td class="text-right fw-600" style="color:#10b981;">${Math.round(val)}</td>
+                </tr>`;
+            }).join('');
+        } else {
+            if (futSection) futSection.style.display = 'none';
+        }
+
+        // Render rekomendasi
+        const rekomSection = document.getElementById('historyRekomendasiSection');
+        const rekomContent = document.getElementById('historyRekomendasiContent');
+        if (rekomContent && d.rekomendasi) {
+            const rekom = d.rekomendasi;
+            const status = (rekom.status || 'NORMAL').toUpperCase();
+            const statusIcon = status === 'TINGGI' ? '📈' : status === 'RENDAH' ? '📉' : '✅';
+            const themeColor = status === 'TINGGI' ? '#ef4444' : status === 'RENDAH' ? '#f59e0b' : '#10b981';
+            const themeBg = status === 'TINGGI' ? '#fee2e2' : status === 'RENDAH' ? '#fef3c7' : '#d1fae5';
+
+            if (rekomSection) rekomSection.style.display = 'block';
+            rekomContent.innerHTML = `
+                <div style="background: #ffffff; padding: 20px; border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color);">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: ${themeBg}; color: ${themeColor}; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                            ${statusIcon}
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px;">Status Permintaan</div>
+                            <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary);">${status}</div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border-left: 4px solid ${themeColor}; border-radius: 4px; padding: 14px 18px; margin-bottom: 18px; color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6;">
+                        ${escapeHtml(rekom.text || 'Tidak ada rekomendasi spesifik saat ini.')}
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${rekom.total_kebutuhan || 0}</div>
+                            <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Total Kebutuhan (Unit)</div>
+                        </div>
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${rekom.avg_per_minggu || 0}</div>
+                            <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Rata-rata / Minggu</div>
+                        </div>
+                    </div>
+                </div>`;
+        } else {
+            if (rekomSection) rekomSection.style.display = 'none';
+        }
+
+        // Show content, hide loading
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = 'block';
+
+        // Refresh icons
+        if (window.lucide) lucide.createIcons();
+
+    } catch (error) {
+        console.error('viewHistory error:', error);
+        showToast('Gagal memuat detail riwayat: ' + error.message, 'error');
+        closeModal('historyDetailModal');
+    }
+}
+
+// Helper: set text content safely
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+

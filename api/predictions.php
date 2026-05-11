@@ -39,6 +39,8 @@ try {
         $action = $_GET['action'] ?? 'history';
         if ($action === 'history') {
             getPredictionHistory($db);
+        } elseif ($action === 'detail') {
+            getPredictionDetail($db);
         } else {
             jsonResponse(['success' => false, 'message' => 'Action tidak valid'], 400);
         }
@@ -353,9 +355,11 @@ function runPrediction(PDO $db): void {
 
     // Inject dates into validation_detail
     $trainSamples = $result['train_test_split']['train_samples'] ?? 0;
+    $usedWindowSize = $result['model_params']['window_size'] ?? $windowSize ?? 4;
     if (isset($result['validation_detail']) && is_array($result['validation_detail'])) {
         foreach ($result['validation_detail'] as $idx => &$vdetail) {
-            $histIdx = $trainSamples + $idx + 1; // Due to 1-step-ahead
+            // Sequence[trainSamples + idx] predicts data[trainSamples + idx + window_size]
+            $histIdx = $trainSamples + $idx + $usedWindowSize;
             if (isset($historical[$histIdx])) {
                 $vdetail['tanggal_mulai'] = $historical[$histIdx]['tanggal'];
                 $vdetail['tanggal_akhir'] = $historical[$histIdx]['tanggal_akhir'] ?? $historical[$histIdx]['tanggal'];
@@ -460,4 +464,112 @@ function getPredictionHistory(PDO $db): void {
     $history = $stmt->fetchAll();
 
     jsonResponse(['success' => true, 'data' => $history]);
+}
+
+function getPredictionDetail(PDO $db): void {
+    $id = inputInt('id');
+    if (!$id) {
+        jsonResponse(['success' => false, 'message' => 'ID prediksi tidak valid'], 400);
+    }
+
+    // Fetch prediction record with drug name
+    $stmt = $db->prepare("SELECT p.*, o.nama_obat, o.stok_saat_ini, o.stok_minimum
+                           FROM prediksi_lstm p
+                           JOIN obat o ON p.obat_id = o.id
+                           WHERE p.id = ?");
+    $stmt->execute([$id]);
+    $pred = $stmt->fetch();
+
+    if (!$pred) {
+        jsonResponse(['success' => false, 'message' => 'Riwayat prediksi tidak ditemukan'], 404);
+    }
+
+    // Decode stored JSON data
+    $nilaiPrediksi = json_decode($pred['nilai_prediksi'], true) ?: [];
+    $modelParams   = json_decode($pred['model_params'], true) ?: [];
+
+    // Fetch historical consumption data for chart
+    $stmtHist = $db->prepare("SELECT minggu_ke, tanggal, jumlah_keluar
+                               FROM data_historis
+                               WHERE obat_id = ?
+                               ORDER BY tanggal ASC");
+    $stmtHist->execute([$pred['obat_id']]);
+    $historical = $stmtHist->fetchAll();
+
+    $historicalLabels = array_map(fn($r) => 'Mg ' . $r['minggu_ke'], $historical);
+    $historicalValues = array_map(fn($r) => (float)$r['jumlah_keluar'], $historical);
+
+    // Build prediction labels from stored model_params or generate them
+    $predictionLabels = $modelParams['future_labels'] ?? [];
+    if (empty($predictionLabels) && !empty($nilaiPrediksi)) {
+        $lastMg = count($historical);
+        for ($i = 0; $i < count($nilaiPrediksi); $i++) {
+            $predictionLabels[] = 'Mg ' . ($lastMg + $i + 1);
+        }
+    }
+
+    // Build validation detail from stored model_params
+    $validationDetail = $modelParams['validation_detail'] ?? [];
+
+    // ── Rekonstruksi Rekomendasi dari data tersimpan (tanpa re-run LSTM) ──
+    $totalKebutuhan = !empty($nilaiPrediksi) ? array_sum($nilaiPrediksi) : 0;
+    $avgPerMinggu   = count($nilaiPrediksi) > 0 ? round($totalKebutuhan / count($nilaiPrediksi), 2) : 0;
+    $stokSaatIni    = (int)$pred['stok_saat_ini'];
+    $stokMinimum    = (int)$pred['stok_minimum'];
+    $namaObat       = $pred['nama_obat'];
+    $periode        = count($nilaiPrediksi);
+
+    // Tentukan status berdasarkan perbandingan kebutuhan vs stok
+    if ($totalKebutuhan > $stokSaatIni * 1.5) {
+        $status = 'TINGGI';
+        $text   = "Permintaan {$namaObat} diprediksi TINGGI dalam {$periode} minggu ke depan. "
+                . "Total kebutuhan ({$totalKebutuhan} unit) jauh melebihi stok saat ini ({$stokSaatIni} unit). "
+                . "Segera lakukan pemesanan tambahan untuk menghindari kehabisan stok.";
+    } elseif ($totalKebutuhan < $stokSaatIni * 0.5) {
+        $status = 'RENDAH';
+        $text   = "Permintaan {$namaObat} diprediksi RENDAH dalam {$periode} minggu ke depan. "
+                . "Total kebutuhan ({$totalKebutuhan} unit) jauh di bawah stok saat ini ({$stokSaatIni} unit). "
+                . "Pertimbangkan untuk mengurangi pemesanan agar tidak terjadi overstock.";
+    } else {
+        $status = 'NORMAL';
+        $text   = "Permintaan {$namaObat} diprediksi NORMAL dalam {$periode} minggu ke depan. "
+                . "Total kebutuhan ({$totalKebutuhan} unit) sesuai dengan stok saat ini ({$stokSaatIni} unit). "
+                . "Pertahankan pola pemesanan yang ada.";
+    }
+
+    $rekomendasi = [
+        'status'           => $status,
+        'text'             => $text,
+        'total_kebutuhan'  => round($totalKebutuhan),
+        'avg_per_minggu'   => $avgPerMinggu,
+    ];
+
+    jsonResponse([
+        'success' => true,
+        'data'    => [
+            'id'                => (int)$pred['id'],
+            'nama_obat'         => $pred['nama_obat'],
+            'obat_id'           => (int)$pred['obat_id'],
+            'stok_saat_ini'     => $stokSaatIni,
+            'stok_minimum'      => $stokMinimum,
+            'tanggal_prediksi'  => $pred['tanggal_prediksi'],
+            'created_at'        => $pred['created_at'],
+            'mae'               => (float)$pred['mae'],
+            'rmse'              => (float)$pred['rmse'],
+            'mape'              => (float)$pred['mape'],
+            'akurasi'           => (float)$pred['akurasi'],
+            'confidence'        => (float)$pred['confidence'],
+            'prediction_values' => $nilaiPrediksi,
+            'prediction_labels' => $predictionLabels,
+            'historical_labels' => $historicalLabels,
+            'historical_values' => $historicalValues,
+            'validation_detail' => $validationDetail,
+            'rekomendasi'       => $rekomendasi,
+            'model_params'      => [
+                'epochs_actual'  => $modelParams['epochs_actual'] ?? '-',
+                'learning_rate'  => $modelParams['learning_rate'] ?? '-',
+                'window_size'    => $modelParams['window_size'] ?? '-',
+            ],
+        ]
+    ]);
 }
