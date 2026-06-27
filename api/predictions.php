@@ -52,15 +52,16 @@ try {
     jsonResponse(['success' => false, 'message' => 'Internal server error: ' . $e->getMessage()], 500);
 }
 
-function deletePredictionHistory(PDO $db): void {
+function deletePredictionHistory(PDO $db): void
+{
     $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
     $id = isset($input['id']) ? $input['id'] : 0;
-    
+
     if ($id === 'all') {
         $db->exec("TRUNCATE TABLE prediksi_lstm");
         jsonResponse(['success' => true, 'message' => 'Semua riwayat berhasil dihapus']);
     } else {
-        $id = (int)$id;
+        $id = (int) $id;
         $stmt = $db->prepare("DELETE FROM prediksi_lstm WHERE id = ?");
         $stmt->execute([$id]);
         jsonResponse(['success' => true, 'message' => 'Riwayat berhasil dihapus']);
@@ -73,14 +74,16 @@ function deletePredictionHistory(PDO $db): void {
  * agregasi hasil ke 1 response JSON. Cocok untuk dashboard / laporan
  * total kebutuhan stok semua obat dalam 1 periode.
  */
-function runBatchPrediction(PDO $db): void {
+function runBatchPrediction(PDO $db): void
+{
     set_time_limit(600);
     ini_set('max_execution_time', '600');
     ini_set('memory_limit', '512M');
 
     $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
-    $periode = (int)($input['periode'] ?? 4);
-    if ($periode < 1 || $periode > 52) $periode = 4;
+    $periode = (int) ($input['periode'] ?? 4);
+    if ($periode < 1 || $periode > 52)
+        $periode = 4;
 
     // Ambil semua obat aktif
     $obatList = $db->query("SELECT id, nama_obat, stok_saat_ini, stok_minimum
@@ -96,7 +99,7 @@ function runBatchPrediction(PDO $db): void {
     $startTotal = microtime(true);
 
     foreach ($obatList as $obat) {
-        $obatId = (int)$obat['id'];
+        $obatId = (int) $obat['id'];
 
         // Ambil data historis 5 fitur multivariate
         $stmtHist = $db->prepare("SELECT stok_awal, jumlah_masuk, jumlah_keluar, stok_akhir, rata_rata_keluar
@@ -110,8 +113,11 @@ function runBatchPrediction(PDO $db): void {
         }
 
         $multivariate = array_map(fn($r) => [
-            (float)$r['stok_awal'], (float)$r['jumlah_masuk'], (float)$r['jumlah_keluar'],
-            (float)$r['stok_akhir'], (float)$r['rata_rata_keluar']
+            (float) $r['stok_awal'],
+            (float) $r['jumlah_masuk'],
+            (float) $r['jumlah_keluar'],
+            (float) $r['stok_akhir'],
+            (float) $r['rata_rata_keluar']
         ], $historical);
 
         // Call Python LSTM
@@ -155,20 +161,26 @@ function runBatchPrediction(PDO $db): void {
             $obatId,
             json_encode($d['predictions']),
             $d['confidence'] ?? 0,
-            $d['mae'] ?? 0, $d['rmse'] ?? 0, $d['mape'] ?? 0, $d['accuracy'] ?? 0,
+            $d['mae'] ?? 0,
+            $d['rmse'] ?? 0,
+            $d['mape'] ?? 0,
+            $d['accuracy'] ?? 0,
             json_encode($d['model_params'] ?? [])
         ]);
 
         $results[] = [
             'obat_id' => $obatId,
             'nama_obat' => $obat['nama_obat'],
-            'stok_saat_ini' => (int)$obat['stok_saat_ini'],
-            'stok_minimum' => (int)$obat['stok_minimum'],
+            'stok_saat_ini' => (int) $obat['stok_saat_ini'],
+            'stok_minimum' => (int) $obat['stok_minimum'],
             'predictions' => $d['predictions'],
             'total_kebutuhan' => array_sum($d['predictions']),
             'avg_per_minggu' => round(array_sum($d['predictions']) / max(1, count($d['predictions'])), 2),
-            'mae' => $d['mae'], 'rmse' => $d['rmse'], 'mape' => $d['mape'],
-            'accuracy' => $d['accuracy'], 'mape_class' => $d['mape_class'] ?? '-',
+            'mae' => $d['mae'],
+            'rmse' => $d['rmse'],
+            'mape' => $d['mape'],
+            'accuracy' => $d['accuracy'],
+            'mape_class' => $d['mape_class'] ?? '-',
             'rekomendasi' => $d['rekomendasi'] ?? null,
             'epoch_terbaik' => $d['model_params']['epoch_terbaik'] ?? '-',
             'learning_rate' => $d['model_params']['learning_rate'] ?? '-',
@@ -202,19 +214,20 @@ function runBatchPrediction(PDO $db): void {
 /**
  * Run prediction by sending historical data to Python LSTM service
  */
-function runPrediction(PDO $db): void {
+function runPrediction(PDO $db): void
+{
     $input = json_decode(file_get_contents('php://input'), true);
     if (!$input) {
         $input = $_POST;
     }
 
-    $obatId = (int)($input['obat_id'] ?? 0);
-    $periode = (int)($input['periode'] ?? 4);
+    $obatId = (int) ($input['obat_id'] ?? 0);
+    $periode = (int) ($input['periode'] ?? 4);
 
     // Manual hyperparameters (optional - from reference-style UX)
-    $epochs = isset($input['epochs']) ? (int)$input['epochs'] : null;
-    $learningRate = isset($input['learning_rate']) ? (float)$input['learning_rate'] : null;
-    $windowSize = isset($input['window_size']) ? (int)$input['window_size'] : null;
+    $epochs = isset($input['epochs']) ? (int) $input['epochs'] : null;
+    $learningRate = isset($input['learning_rate']) ? (float) $input['learning_rate'] : null;
+    $windowSize = isset($input['window_size']) ? (int) $input['window_size'] : null;
 
     if (!$obatId) {
         jsonResponse(['success' => false, 'message' => 'Pilih obat terlebih dahulu'], 400);
@@ -248,11 +261,11 @@ function runPrediction(PDO $db): void {
     // Build multivariate data array: [[stok_awal, masuk, keluar, stok_akhir, rata_rata], ...]
     $multivariateData = array_map(function ($row) {
         return [
-            (float)$row['stok_awal'],
-            (float)$row['jumlah_masuk'],
-            (float)$row['jumlah_keluar'],
-            (float)$row['stok_akhir'],
-            (float)$row['rata_rata_keluar'],
+            (float) $row['stok_awal'],
+            (float) $row['jumlah_masuk'],
+            (float) $row['jumlah_keluar'],
+            (float) $row['stok_akhir'],
+            (float) $row['rata_rata_keluar'],
         ];
     }, $historical);
 
@@ -264,32 +277,35 @@ function runPrediction(PDO $db): void {
     $pythonUrl = PYTHON_LSTM_URL . '/predict';
 
     $payloadArr = [
-        'drug_id'          => $obatId,
-        'historical_data'  => $multivariateData,
-        'periode'          => $periode,
+        'drug_id' => $obatId,
+        'historical_data' => $multivariateData,
+        'periode' => $periode,
     ];
 
     // Pass manual hyperparameters if provided
-    if ($epochs !== null) $payloadArr['epochs'] = $epochs;
-    if ($learningRate !== null) $payloadArr['learning_rate'] = $learningRate;
-    if ($windowSize !== null) $payloadArr['window_size'] = $windowSize;
+    if ($epochs !== null)
+        $payloadArr['epochs'] = $epochs;
+    if ($learningRate !== null)
+        $payloadArr['learning_rate'] = $learningRate;
+    if ($windowSize !== null)
+        $payloadArr['window_size'] = $windowSize;
 
     $payload = json_encode($payloadArr);
 
     // Helper: kirim payload ke Python /predict
-    $callPython = function() use ($pythonUrl, $payload) {
+    $callPython = function () use ($pythonUrl, $payload) {
         $ch = curl_init($pythonUrl);
         curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $payload,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 180,
+            CURLOPT_TIMEOUT => 180,
             CURLOPT_CONNECTTIMEOUT => 10,
         ]);
         $resp = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
+        $err = curl_error($ch);
         curl_close($ch);
         return ['response' => $resp, 'http' => $code, 'error' => $err];
     };
@@ -329,8 +345,8 @@ function runPrediction(PDO $db): void {
     }
 
     $pythonResponse = $pyCall['response'];
-    $httpCode       = $pyCall['http'];
-    $curlError      = $pyCall['error'];
+    $httpCode = $pyCall['http'];
+    $curlError = $pyCall['error'];
 
     if ($pythonResponse === false || $httpCode !== 200) {
         $errorMsg = $curlError ?: 'Python LSTM service tidak merespons';
@@ -340,7 +356,7 @@ function runPrediction(PDO $db): void {
         jsonResponse([
             'success' => false,
             'message' => 'Gagal menjalankan prediksi: ' . $errorMsg,
-            'hint'    => 'PHP sudah coba auto-spawn service tapi gagal. Cek python/service.log atau jalankan manual: python\\start_service.bat'
+            'hint' => 'PHP sudah coba auto-spawn service tapi gagal. Cek python/service.log atau jalankan manual: python\\start_service.bat'
         ], 503);
     }
 
@@ -354,12 +370,12 @@ function runPrediction(PDO $db): void {
     $result = $pythonResult['data'];
 
     // Inject dates into validation_detail
-    $trainSamples = $result['train_test_split']['train_samples'] ?? 0;
-    $usedWindowSize = $result['model_params']['window_size'] ?? $windowSize ?? 4;
+    // Sekarang validation_detail mencakup SEMUA data (idx=0 s.d. N-window_size-1)
+    // Formula: sequence[idx] memprediksi historical[idx + window_size]
+    $usedWindowSize = $result['model_params']['window_size'] ?? $windowSize ?? 1;
     if (isset($result['validation_detail']) && is_array($result['validation_detail'])) {
         foreach ($result['validation_detail'] as $idx => &$vdetail) {
-            // Sequence[trainSamples + idx] predicts data[trainSamples + idx + window_size]
-            $histIdx = $trainSamples + $idx + $usedWindowSize;
+            $histIdx = $idx + $usedWindowSize;  // 0-indexed: idx=0 → historical[window_size]
             if (isset($historical[$histIdx])) {
                 $vdetail['tanggal_mulai'] = $historical[$histIdx]['tanggal'];
                 $vdetail['tanggal_akhir'] = $historical[$histIdx]['tanggal_akhir'] ?? $historical[$histIdx]['tanggal'];
@@ -378,8 +394,8 @@ function runPrediction(PDO $db): void {
         $futureDate = date('Y-m-d', strtotime($lastDate . ' +' . (($i * 7) + 1) . ' days'));
         $predictionLabels[] = 'Mg ' . ($lastMingguKe + $i + 1);
         $predictions[] = [
-            'tanggal'    => $futureDate,
-            'nilai'      => $result['predictions'][$i] ?? 0,
+            'tanggal' => $futureDate,
+            'nilai' => $result['predictions'][$i] ?? 0,
             'confidence' => max(60, ($result['confidence'] ?? 85) - ($i * 0.5))
         ];
     }
@@ -388,10 +404,10 @@ function runPrediction(PDO $db): void {
     $reportData = [
         'epochs_actual' => $result['model_params']['epochs_actual'] ?? $epochs,
         'learning_rate' => $result['model_params']['learning_rate'] ?? $learningRate,
-        'window_size'   => $windowSize ?? 4,
+        'window_size' => $windowSize ?? 4,
         'validation_detail' => $result['validation_detail'] ?? [],
         'historical_labels' => $historicalLabels,
-        'future_labels'     => $predictionLabels
+        'future_labels' => $predictionLabels
     ];
 
     // Save prediction to database
@@ -412,33 +428,35 @@ function runPrediction(PDO $db): void {
     jsonResponse([
         'success' => true,
         'data' => [
-            'obat'              => $obat,
-            'predictions'       => $predictions,
+            'obat' => $obat,
+            'predictions' => $predictions,
             'prediction_values' => $result['predictions'],
             'prediction_labels' => $predictionLabels,
             'historical_labels' => $historicalLabels,
             'historical_values' => $historicalValues,
-            'mae'               => $result['mae'],
-            'rmse'              => $result['rmse'],
-            'mape'              => $result['mape'],
-            'mape_class'        => $result['mape_class'] ?? '',
-            'accuracy'          => $result['accuracy'],
-            'confidence'        => $result['confidence'],
-            'model_params'      => $result['model_params'],
+            'mae' => $result['mae'],
+            'rmse' => $result['rmse'],
+            'mape' => $result['mape'],
+            'mape_test' => $result['mape_test'] ?? null,
+            'mape_class' => $result['mape_class'] ?? '',
+            'accuracy' => $result['accuracy'],
+            'confidence' => $result['confidence'],
+            'model_params' => $result['model_params'],
             // ─── Data tambahan untuk section skripsi ───
-            'arsitektur'        => $result['arsitektur'] ?? null,
-            'loss_history'      => $result['loss_history'] ?? [],
-            'val_loss_history'  => $result['val_loss_history'] ?? [],
-            'norm_table'        => $result['norm_table'] ?? [],
-            'norm_info'         => $result['norm_info'] ?? null,
+            'arsitektur' => $result['arsitektur'] ?? null,
+            'loss_history' => $result['loss_history'] ?? [],
+            'val_loss_history' => $result['val_loss_history'] ?? [],
+            'norm_table' => $result['norm_table'] ?? [],
+            'norm_info' => $result['norm_info'] ?? null,
             'validation_detail' => $result['validation_detail'] ?? [],
-            'rekomendasi'       => $result['rekomendasi'] ?? null,
-            'train_test_split'  => $result['train_test_split'] ?? null,
+            'rekomendasi' => $result['rekomendasi'] ?? null,
+            'train_test_split' => $result['train_test_split'] ?? null,
         ]
     ]);
 }
 
-function getPredictionHistory(PDO $db): void {
+function getPredictionHistory(PDO $db): void
+{
     $obatId = inputInt('obat_id');
     $limit = max(1, min(50, inputInt('limit', 10)));
 
@@ -466,7 +484,8 @@ function getPredictionHistory(PDO $db): void {
     jsonResponse(['success' => true, 'data' => $history]);
 }
 
-function getPredictionDetail(PDO $db): void {
+function getPredictionDetail(PDO $db): void
+{
     $id = inputInt('id');
     if (!$id) {
         jsonResponse(['success' => false, 'message' => 'ID prediksi tidak valid'], 400);
@@ -486,7 +505,7 @@ function getPredictionDetail(PDO $db): void {
 
     // Decode stored JSON data
     $nilaiPrediksi = json_decode($pred['nilai_prediksi'], true) ?: [];
-    $modelParams   = json_decode($pred['model_params'], true) ?: [];
+    $modelParams = json_decode($pred['model_params'], true) ?: [];
 
     // Fetch historical consumption data for chart
     $stmtHist = $db->prepare("SELECT minggu_ke, tanggal, jumlah_keluar
@@ -497,7 +516,7 @@ function getPredictionDetail(PDO $db): void {
     $historical = $stmtHist->fetchAll();
 
     $historicalLabels = array_map(fn($r) => 'Mg ' . $r['minggu_ke'], $historical);
-    $historicalValues = array_map(fn($r) => (float)$r['jumlah_keluar'], $historical);
+    $historicalValues = array_map(fn($r) => (float) $r['jumlah_keluar'], $historical);
 
     // Build prediction labels from stored model_params or generate them
     $predictionLabels = $modelParams['future_labels'] ?? [];
@@ -513,62 +532,62 @@ function getPredictionDetail(PDO $db): void {
 
     // ── Rekonstruksi Rekomendasi dari data tersimpan (tanpa re-run LSTM) ──
     $totalKebutuhan = !empty($nilaiPrediksi) ? array_sum($nilaiPrediksi) : 0;
-    $avgPerMinggu   = count($nilaiPrediksi) > 0 ? round($totalKebutuhan / count($nilaiPrediksi), 2) : 0;
-    $stokSaatIni    = (int)$pred['stok_saat_ini'];
-    $stokMinimum    = (int)$pred['stok_minimum'];
-    $namaObat       = $pred['nama_obat'];
-    $periode        = count($nilaiPrediksi);
+    $avgPerMinggu = count($nilaiPrediksi) > 0 ? round($totalKebutuhan / count($nilaiPrediksi), 2) : 0;
+    $stokSaatIni = (int) $pred['stok_saat_ini'];
+    $stokMinimum = (int) $pred['stok_minimum'];
+    $namaObat = $pred['nama_obat'];
+    $periode = count($nilaiPrediksi);
 
     // Tentukan status berdasarkan perbandingan kebutuhan vs stok
     if ($totalKebutuhan > $stokSaatIni * 1.5) {
         $status = 'TINGGI';
-        $text   = "Permintaan {$namaObat} diprediksi TINGGI dalam {$periode} minggu ke depan. "
-                . "Total kebutuhan ({$totalKebutuhan} unit) jauh melebihi stok saat ini ({$stokSaatIni} unit). "
-                . "Segera lakukan pemesanan tambahan untuk menghindari kehabisan stok.";
+        $text = "Permintaan {$namaObat} diprediksi TINGGI dalam {$periode} minggu ke depan. "
+            . "Total kebutuhan ({$totalKebutuhan} unit) jauh melebihi stok saat ini ({$stokSaatIni} unit). "
+            . "Segera lakukan pemesanan tambahan untuk menghindari kehabisan stok.";
     } elseif ($totalKebutuhan < $stokSaatIni * 0.5) {
         $status = 'RENDAH';
-        $text   = "Permintaan {$namaObat} diprediksi RENDAH dalam {$periode} minggu ke depan. "
-                . "Total kebutuhan ({$totalKebutuhan} unit) jauh di bawah stok saat ini ({$stokSaatIni} unit). "
-                . "Pertimbangkan untuk mengurangi pemesanan agar tidak terjadi overstock.";
+        $text = "Permintaan {$namaObat} diprediksi RENDAH dalam {$periode} minggu ke depan. "
+            . "Total kebutuhan ({$totalKebutuhan} unit) jauh di bawah stok saat ini ({$stokSaatIni} unit). "
+            . "Pertimbangkan untuk mengurangi pemesanan agar tidak terjadi overstock.";
     } else {
         $status = 'NORMAL';
-        $text   = "Permintaan {$namaObat} diprediksi NORMAL dalam {$periode} minggu ke depan. "
-                . "Total kebutuhan ({$totalKebutuhan} unit) sesuai dengan stok saat ini ({$stokSaatIni} unit). "
-                . "Pertahankan pola pemesanan yang ada.";
+        $text = "Permintaan {$namaObat} diprediksi NORMAL dalam {$periode} minggu ke depan. "
+            . "Total kebutuhan ({$totalKebutuhan} unit) sesuai dengan stok saat ini ({$stokSaatIni} unit). "
+            . "Pertahankan pola pemesanan yang ada.";
     }
 
     $rekomendasi = [
-        'status'           => $status,
-        'text'             => $text,
-        'total_kebutuhan'  => round($totalKebutuhan),
-        'avg_per_minggu'   => $avgPerMinggu,
+        'status' => $status,
+        'text' => $text,
+        'total_kebutuhan' => round($totalKebutuhan),
+        'avg_per_minggu' => $avgPerMinggu,
     ];
 
     jsonResponse([
         'success' => true,
-        'data'    => [
-            'id'                => (int)$pred['id'],
-            'nama_obat'         => $pred['nama_obat'],
-            'obat_id'           => (int)$pred['obat_id'],
-            'stok_saat_ini'     => $stokSaatIni,
-            'stok_minimum'      => $stokMinimum,
-            'tanggal_prediksi'  => $pred['tanggal_prediksi'],
-            'created_at'        => $pred['created_at'],
-            'mae'               => (float)$pred['mae'],
-            'rmse'              => (float)$pred['rmse'],
-            'mape'              => (float)$pred['mape'],
-            'akurasi'           => (float)$pred['akurasi'],
-            'confidence'        => (float)$pred['confidence'],
+        'data' => [
+            'id' => (int) $pred['id'],
+            'nama_obat' => $pred['nama_obat'],
+            'obat_id' => (int) $pred['obat_id'],
+            'stok_saat_ini' => $stokSaatIni,
+            'stok_minimum' => $stokMinimum,
+            'tanggal_prediksi' => $pred['tanggal_prediksi'],
+            'created_at' => $pred['created_at'],
+            'mae' => (float) $pred['mae'],
+            'rmse' => (float) $pred['rmse'],
+            'mape' => (float) $pred['mape'],
+            'akurasi' => (float) $pred['akurasi'],
+            'confidence' => (float) $pred['confidence'],
             'prediction_values' => $nilaiPrediksi,
             'prediction_labels' => $predictionLabels,
             'historical_labels' => $historicalLabels,
             'historical_values' => $historicalValues,
             'validation_detail' => $validationDetail,
-            'rekomendasi'       => $rekomendasi,
-            'model_params'      => [
-                'epochs_actual'  => $modelParams['epochs_actual'] ?? '-',
-                'learning_rate'  => $modelParams['learning_rate'] ?? '-',
-                'window_size'    => $modelParams['window_size'] ?? '-',
+            'rekomendasi' => $rekomendasi,
+            'model_params' => [
+                'epochs_actual' => $modelParams['epochs_actual'] ?? '-',
+                'learning_rate' => $modelParams['learning_rate'] ?? '-',
+                'window_size' => $modelParams['window_size'] ?? '-',
             ],
         ]
     ]);

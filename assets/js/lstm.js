@@ -169,8 +169,10 @@ async function runPrediction() {
     btn.disabled = true;
 
     // Reset UI
-    document.getElementById('predictionResults').style.display = 'none';
-    document.getElementById('trainingMetrics').style.display = 'none';
+    const predResultsEl = document.getElementById('predictionResults');
+    if (predResultsEl) predResultsEl.style.display = 'none';
+    const tmEl = document.getElementById('trainingMetrics');
+    if (tmEl) tmEl.style.display = 'none';
     document.querySelectorAll('.result-section-reveal').forEach(el => el.classList.remove('revealed'));
     clearConsole();
     resetStepper();
@@ -248,8 +250,8 @@ async function runPrediction() {
             updateTrainingStat('trainStatLoss', response.data.loss_history?.length > 0
                 ? response.data.loss_history[response.data.loss_history.length - 1].toFixed(6) : '-');
             consoleLog(`✓ Training selesai! Epoch terbaik: ${mp.epoch_terbaik || '-'}`, 'success');
-            consoleLog(`  Note: Sistem berhenti di epoch ${mp.epochs_actual} karena masa Patience (30 epoch) telah habis tanpa ada peningkatan akurasi lebih lanjut dari epoch ${mp.epoch_terbaik}.`, 'epoch');
-            consoleLog(`  MAPE: ${response.data.mape}% | Akurasi: ${response.data.accuracy}%`, 'success');
+            consoleLog(`  Note: Sistem berhenti di epoch ${mp.epochs_actual}. Model terbaik ada di epoch ${mp.epoch_terbaik} (EarlyStopping patience ≈ ${Math.round((mp.epochs_configured || 1500) * 0.2)} epoch).`, 'epoch');
+            consoleLog(`  MAPE (Semua Data): ${response.data.mape}% | Test Set (20%): ${response.data.mape_test ?? '-'}% | Akurasi: ${response.data.accuracy}%`, 'success');
             consoleLog(`  Klasifikasi: ${response.data.mape_class || '-'}`, 'success');
             consoleLog(`  Training time: ${mp.training_time_seconds || elapsed}s`, 'epoch');
 
@@ -287,7 +289,7 @@ async function runPrediction() {
 // ═══════════════════════════════════════════════════
 function displayPredictionResults(data) {
     window.currentPredictionData = data; // Save for pagination
-    
+
     const resultsDiv = document.getElementById('predictionResults');
     if (!resultsDiv) return;
     resultsDiv.style.display = 'block';
@@ -296,40 +298,35 @@ function displayPredictionResults(data) {
     const metricsPanel = document.getElementById('trainingMetrics');
     if (metricsPanel) metricsPanel.style.display = 'grid';
 
-    // Update metric cards
+    // ─── METRIC CARDS (di training panel) ───
     const metricMSE = document.getElementById('metricMSE');
     const metricRMSE = document.getElementById('metricRMSE');
     const metricMAPE = document.getElementById('metricMAPE');
     const metricAccuracy = document.getElementById('metricAccuracy');
 
-    if (metricMSE) {
-        const mse = (data.rmse * data.rmse) || 0;
-        metricMSE.textContent = mse.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    if (metricRMSE) {
-        metricRMSE.textContent = parseFloat(data.rmse).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    
+    const rmseVal = parseFloat(data.rmse) || 0;
+    const mapeVal = parseFloat(data.mape) || 0;
+    const accVal  = parseFloat(data.accuracy) || 0;
+
+    if (metricMSE) metricMSE.textContent = (rmseVal * rmseVal).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (metricRMSE) metricRMSE.textContent = rmseVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     if (metricMAPE) {
-        const mapeVal = parseFloat(data.mape);
         metricMAPE.textContent = mapeVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-        const mapeClass = data.mape_class || '';
-        
         let statusClass = 'mape-status-poor';
         if (mapeVal < 10) statusClass = 'mape-status-excellent';
         else if (mapeVal < 20) statusClass = 'mape-status-good';
         else if (mapeVal < 50) statusClass = 'mape-status-fair';
-        
         const parentCard = metricMAPE.closest('.metric-card-bordered') || metricMAPE.parentElement;
         let badge = parentCard.querySelector('.mape-status-label');
-        if (!badge) {
-            badge = document.createElement('div');
-            parentCard.appendChild(badge);
-        }
+        if (!badge) { badge = document.createElement('div'); parentCard.appendChild(badge); }
         badge.className = 'mape-status-label ' + statusClass;
-        badge.textContent = mapeClass;
+        badge.textContent = data.mape_class || '';
     }
-    if (metricAccuracy) metricAccuracy.textContent = parseFloat(data.accuracy).toFixed(1) + '%';
+    if (metricAccuracy) metricAccuracy.textContent = accVal.toFixed(1) + '%';
+
+    // ─── HERO SECTION (selalu terlihat di atas tabs) ───
+    renderHeroSection(data, rmseVal, mapeVal, accVal);
 
     // Destroy old charts
     if (predictionChart) { predictionChart.destroy(); predictionChart = null; }
@@ -344,6 +341,8 @@ function displayPredictionResults(data) {
         labels: data.prediction_labels || [],
         values: data.prediction_values || []
     });
+    // Ekspor instance ke window agar bisa di-resize saat switch tab
+    window.predictionChart = predictionChart;
 
     // Render all sections
     renderArsitektur(data);
@@ -434,6 +433,62 @@ function renderLossChart(data) {
     if (!section || !lossHistory || lossHistory.length === 0) return;
     section.style.display = 'block';
     lossChartInstance = createLossChart('lossChart', lossHistory, data.val_loss_history || []);
+    window.lossChartInstance = lossChartInstance;
+}
+
+// ═══════════════════════════════════════════════════
+// HERO SECTION — selalu terlihat di atas tabs (MAPE, RMSE, Rekomendasi)
+// ═══════════════════════════════════════════════════
+function renderHeroSection(data, rmseVal, mapeVal, accVal) {
+    // MAPE & RMSE & Accuracy
+    const heroMAPE = document.getElementById('heroMAPE');
+    const heroRMSE = document.getElementById('heroRMSE');
+    const heroAccuracy = document.getElementById('heroAccuracy');
+    const heroMAPEClass = document.getElementById('heroMAPEClass');
+
+    if (heroMAPE) heroMAPE.textContent = mapeVal.toFixed(2) + '%';
+    if (heroRMSE) heroRMSE.textContent = rmseVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (heroAccuracy) heroAccuracy.textContent = accVal.toFixed(2) + '%';
+
+    // Tampilkan MAPE test set sebagai metrik sekunder (generalisasi 20% data terakhir)
+    const heroMAPEAll = document.getElementById('heroMAPEAll');
+    if (heroMAPEAll) {
+        const mapeTestVal = parseFloat(data.mape_test);
+        if (!isNaN(mapeTestVal)) {
+            heroMAPEAll.textContent = `Test set: ${mapeTestVal.toFixed(2)}%`;
+            heroMAPEAll.style.display = 'block';
+        } else {
+            heroMAPEAll.style.display = 'none';
+        }
+    }
+
+    if (heroMAPEClass) {
+        let cls = 'poor';
+        if (mapeVal < 10) cls = 'excellent';
+        else if (mapeVal < 20) cls = 'good';
+        else if (mapeVal < 50) cls = 'fair';
+        heroMAPEClass.className = 'hm-class-badge hm-class-' + cls;
+        heroMAPEClass.textContent = data.mape_class || '';
+    }
+
+    // Rekomendasi
+    const rekom = data.rekomendasi;
+    if (rekom) {
+        const status = (rekom.status || 'NORMAL').toUpperCase();
+        const icon = status === 'TINGGI' ? '📈' : status === 'RENDAH' ? '📉' : '✅';
+        const badgeCls = status === 'TINGGI' ? 'hero-status-tinggi' : status === 'RENDAH' ? 'hero-status-rendah' : 'hero-status-normal';
+
+        const heroRekomStatus = document.getElementById('heroRekomStatus');
+        const heroRekomBadge = document.getElementById('heroRekomBadge');
+        const heroRekomText = document.getElementById('heroRekomText');
+
+        if (heroRekomStatus) heroRekomStatus.textContent = icon + ' ' + (rekom.avg_per_minggu || 0).toLocaleString('id-ID') + ' /mg';
+        if (heroRekomBadge) {
+            heroRekomBadge.className = 'hero-status-badge ' + badgeCls;
+            heroRekomBadge.textContent = status;
+        }
+        if (heroRekomText) heroRekomText.textContent = rekom.text || '';
+    }
 }
 
 function renderNormalisasi(data) {
@@ -540,12 +595,13 @@ window.renderValidasiPage = function(pageIndexStr) {
         if (future && future.length > 0) {
             html += future.map((p, i) => {
                 const label = window.currentPredictionData.prediction_labels[i] || `Mg N+${i+1}`;
-                return `<tr class="row-future">
+                return `<tr class="row-future row-future-highlight">
                     <td class="text-center cell-muted">${validasi.length + i + 1}</td>
-                    <td class="fw-bold">${label} <span class="badge badge-aman" style="font-size:9px;margin-left:4px;">Future</span></td>
+                    <td class="fw-bold">${label} <span class="future-badge">FUTURE</span></td>
                     <td>${p.tanggal}</td>
                     <td class="text-right cell-muted">-</td>
-                    <td class="text-right fw-600" style="color: #10b981;">${Math.round(p.nilai)}</td>
+                    <td class="text-right fw-700" style="color: #047857;">${Math.round(p.nilai)}</td>
+                    <td class="text-right cell-muted">-</td>
                     <td class="text-right cell-muted">-</td>
                 </tr>`;
             }).join('');
@@ -561,32 +617,40 @@ window.renderValidasiPage = function(pageIndexStr) {
         html += itemsToRender.map((item, idx) => {
             const tMulai = item.tanggal_mulai || '-';
             const selisih = Math.abs(item.error).toFixed(2);
-            return `<tr>
+            const actualIdx = startIndex + idx;
+            const isTest = item.is_test === true;
+            const rowClass = isTest ? 'row-test-highlight' : 'row-train-dim';
+            const badgeHtml = isTest
+                ? '<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;">TEST</span>'
+                : '<span style="font-size:9px;background:#f3f4f6;color:#6b7280;padding:1px 5px;border-radius:3px;margin-left:4px;">TRAIN</span>';
+            return `<tr class="${rowClass}" onclick="showTraceModal(${actualIdx})" title="Klik untuk lihat pembuktian manual">
                 <td class="text-center cell-muted">${startIndex + idx + 1}</td>
-                <td class="fw-600">Mg ${item.minggu}</td>
+                <td class="fw-600">Mg ${item.minggu}${badgeHtml}</td>
                 <td>${tMulai}</td>
                 <td class="text-right fw-600" style="color: #ef4444;">${Math.round(item.aktual)}</td>
                 <td class="text-right fw-600" style="color: #10b981;">${Math.round(item.prediksi)}</td>
                 <td class="text-right cell-muted">${selisih}</td>
+                <td class="text-right" style="color:${item.ape > 50 ? '#ef4444' : item.ape > 20 ? '#f59e0b' : '#10b981'};font-weight:600;">${item.ape.toFixed(2)}%</td>
             </tr>`;
         }).join('');
 
         if (pageIndexStr === "all" && future && future.length > 0) {
             html += future.map((p, i) => {
                 const label = window.currentPredictionData.prediction_labels[i] || `Mg N+${i+1}`;
-                return `<tr class="row-future">
+                return `<tr class="row-future row-future-highlight">
                     <td class="text-center cell-muted">${validasi.length + i + 1}</td>
-                    <td class="fw-bold">${label} <span class="badge badge-aman" style="font-size:9px;margin-left:4px;">Future</span></td>
+                    <td class="fw-bold">${label} <span class="future-badge">FUTURE</span></td>
                     <td>${p.tanggal}</td>
                     <td class="text-right cell-muted">-</td>
-                    <td class="text-right fw-600" style="color: #10b981;">${Math.round(p.nilai)}</td>
+                    <td class="text-right fw-700" style="color: #047857;">${Math.round(p.nilai)}</td>
+                    <td class="text-right cell-muted">-</td>
                     <td class="text-right cell-muted">-</td>
                 </tr>`;
             }).join('');
         }
     }
 
-    tbody.innerHTML = html || '<tr><td colspan="6" class="text-center text-muted">Tidak ada data</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="7" class="text-center text-muted">Tidak ada data</td></tr>';
 };
 
 function renderErrorChart(data) {
@@ -597,6 +661,7 @@ function renderErrorChart(data) {
     const labels = validasi.map(v => 'Mg ' + v.minggu);
     const errors = validasi.map(v => v.error);
     errorChartInstance = createErrorChart('errorChart', labels, errors);
+    window.errorChartInstance = errorChartInstance;
 }
 
 function renderRekomendasi(data) {
@@ -865,4 +930,217 @@ function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// TRACEABILITY MODAL — Pembuktian Manual Perhitungan Per-Baris
+// Memenuhi jawaban: "Coba jabarkan bagaimana sistem menghitung prediksi minggu ke-X"
+// ═══════════════════════════════════════════════════════════════════
+
+const FEATURE_LABELS = [
+    'Stok Awal Minggu',
+    'Total Masuk',
+    'Total Keluar',
+    'Stok Akhir Minggu',
+    'Rata-rata Keluar/Hari'
+];
+const TARGET_FEATURE_INDEX = 2; // Total Keluar
+
+window.showTraceModal = function(validationIdx) {
+    const data = window.currentPredictionData;
+    if (!data || !data.validation_detail) return;
+    const entry = data.validation_detail[validationIdx];
+    if (!entry || !entry.trace) {
+        console.warn('Trace data tidak tersedia untuk baris ini.');
+        return;
+    }
+
+    const trace = entry.trace;
+    const minggu = entry.minggu;
+    const tanggal = entry.tanggal_mulai || '-';
+    const normInfo = (data.norm_info && data.norm_info['Total Keluar']) || {};
+
+    // Subtitle
+    setText('traceModalSubtitle', `Minggu ke-${minggu} · ${tanggal}`);
+
+    // ─── Build body content (6 langkah) ───
+    const body = document.getElementById('traceModalBody');
+    if (!body) return;
+
+    const inputRows = trace.input_window.map((win, i) => `
+        <tr>
+            <td class="fw-600">Mg ${win.row_minggu}</td>
+            ${win.features_asli.map(v => `<td class="num-asli">${v.toLocaleString('id-ID')}</td>`).join('')}
+        </tr>
+    `).join('');
+
+    const normRows = trace.input_window.map((win, i) => `
+        <tr>
+            <td class="fw-600">Mg ${win.row_minggu}</td>
+            ${win.features_norm.map(v => `<td class="num-norm">${v.toFixed(6)}</td>`).join('')}
+        </tr>
+    `).join('');
+
+    const featureHeaders = FEATURE_LABELS.map(f => `<th>${f}</th>`).join('');
+
+    // Contoh perhitungan denormalisasi untuk target (Total Keluar)
+    const predNormStr = trace.prediksi_norm.toFixed(6);
+    const tRange = trace.target_range;
+    const tMin = trace.target_min;
+    const predDenorm = trace.prediksi_norm * tRange + tMin;
+
+    body.innerHTML = `
+        <!-- STEP 1: INPUT MENTAH -->
+        <div class="trace-step">
+            <div class="trace-step-header">
+                <span class="trace-step-number">1</span>
+                <h4 class="trace-step-title">Input Mentah — Window ${trace.input_window.length} Minggu Terakhir</h4>
+            </div>
+            <p class="trace-step-desc">
+                Sistem mengambil <strong>${trace.input_window.length} minggu data sebelumnya</strong> sebagai input untuk memprediksi minggu ke-${minggu}.
+                Setiap minggu memiliki 5 fitur (multivariate).
+            </p>
+            <div style="overflow-x:auto;">
+                <table class="trace-table">
+                    <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
+                    <tbody>${inputRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- STEP 2: NORMALISASI MIN-MAX -->
+        <div class="trace-step">
+            <div class="trace-step-header">
+                <span class="trace-step-number">2</span>
+                <h4 class="trace-step-title">Normalisasi Min-Max ke Skala [0, 1]</h4>
+            </div>
+            <p class="trace-step-desc">
+                Setiap fitur dinormalisasi menggunakan rumus Min-Max agar gradient descent stabil.
+            </p>
+            <div class="trace-formula">
+                $$X_{\\text{norm}} = \\frac{X - X_{\\min}}{X_{\\max} - X_{\\min}}$$
+            </div>
+            <p class="trace-step-desc">
+                Hasil normalisasi window di atas (skala 0-1):
+            </p>
+            <div style="overflow-x:auto;">
+                <table class="trace-table">
+                    <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
+                    <tbody>${normRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- STEP 3: FORWARD PROPAGATION -->
+        <div class="trace-step">
+            <div class="trace-step-header">
+                <span class="trace-step-number">3</span>
+                <h4 class="trace-step-title">Forward Propagation Melalui Arsitektur LSTM</h4>
+            </div>
+            <p class="trace-step-desc">
+                Data ternormalisasi diumpankan ke jaringan dengan arsitektur:
+                <strong>LSTM(16 hidden units) → Dense(8 ReLU) → Dense(1)</strong>.
+                Setiap gate LSTM (Forget, Input, Cell, Output) melakukan perhitungan matriks
+                pada setiap timestep window. Sangat kompleks untuk dijabarkan manual karena melibatkan
+                ratusan bobot, namun secara konseptual:
+            </p>
+            <div class="trace-formula">
+                $$\\hat{y}_{\\text{norm}} = \\text{Dense}_{1}\\Big(\\text{ReLU}\\big(\\text{Dense}_{8}(\\text{LSTM}_{16}(X_{\\text{norm}}))\\big)\\Big)$$
+            </div>
+            <p class="trace-step-desc" style="margin-top:14px;">
+                Hasil output mentah model (masih dalam skala ternormalisasi):
+            </p>
+            <div class="trace-formula" style="background:#fef3c7; border-color:#fbbf24;">
+                $$\\hat{y}_{\\text{norm}} = ${predNormStr}$$
+            </div>
+        </div>
+
+        <!-- STEP 4: DENORMALISASI -->
+        <div class="trace-step">
+            <div class="trace-step-header">
+                <span class="trace-step-number">4</span>
+                <h4 class="trace-step-title">Denormalisasi ke Skala Asli (Unit Obat)</h4>
+            </div>
+            <p class="trace-step-desc">
+                Output model di skala [0,1], perlu dikembalikan ke skala unit dengan rumus inversi Min-Max:
+            </p>
+            <div class="trace-formula">
+                $$\\hat{Y} = \\hat{y}_{\\text{norm}} \\times (Y_{\\max} - Y_{\\min}) + Y_{\\min}$$
+            </div>
+            <p class="trace-step-desc" style="margin-top:14px;">
+                Substitusi nilai (untuk fitur Total Keluar — Y<sub>min</sub> = ${tMin.toLocaleString('id-ID')},
+                Y<sub>max</sub> = ${trace.target_max.toLocaleString('id-ID')}):
+            </p>
+            <div class="trace-formula">
+                $$\\hat{Y} = ${predNormStr} \\times ${tRange.toLocaleString('id-ID')} + ${tMin.toLocaleString('id-ID')} = ${predDenorm.toFixed(2)}$$
+            </div>
+            <p class="trace-step-desc" style="margin-top:14px;">
+                <strong>Prediksi akhir: ${Math.round(predDenorm).toLocaleString('id-ID')} unit obat.</strong>
+            </p>
+        </div>
+
+        <!-- STEP 5: EVALUASI ERROR -->
+        <div class="trace-step">
+            <div class="trace-step-header">
+                <span class="trace-step-number">5</span>
+                <h4 class="trace-step-title">Evaluasi Akurasi Terhadap Data Aktual</h4>
+            </div>
+            <p class="trace-step-desc">
+                Bandingkan prediksi dengan nilai aktual di Minggu ke-${minggu}:
+            </p>
+            <div class="trace-formula">
+                $$\\text{Error} = Y_{\\text{aktual}} - \\hat{Y} = ${entry.aktual.toLocaleString('id-ID')} - ${entry.prediksi.toLocaleString('id-ID')} = ${entry.error.toFixed(2)}$$
+            </div>
+            <div class="trace-formula" style="margin-top:8px;">
+                $$\\text{APE} = \\left|\\frac{Y_{\\text{aktual}} - \\hat{Y}}{Y_{\\text{aktual}}}\\right| \\times 100\\% = \\left|\\frac{${entry.error.toFixed(2)}}{${entry.aktual}}\\right| \\times 100\\% = ${entry.ape.toFixed(2)}\\%$$
+            </div>
+        </div>
+
+        <!-- KESIMPULAN -->
+        <div class="trace-conclusion">
+            <p class="trace-conclusion-title">📊 Ringkasan Perhitungan Minggu ke-${minggu}</p>
+            <div class="trace-conclusion-grid">
+                <div class="trace-conclusion-item">
+                    <div class="lbl">Aktual</div>
+                    <div class="val" style="color:#dc2626;">${Math.round(entry.aktual).toLocaleString('id-ID')}</div>
+                </div>
+                <div class="trace-conclusion-item">
+                    <div class="lbl">Prediksi LSTM</div>
+                    <div class="val" style="color:#2563eb;">${Math.round(entry.prediksi).toLocaleString('id-ID')}</div>
+                </div>
+                <div class="trace-conclusion-item">
+                    <div class="lbl">APE</div>
+                    <div class="val">${entry.ape.toFixed(2)}%</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Tampilkan modal
+    const modal = document.getElementById('traceModal');
+    if (modal) modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Render rumus MathJax
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([body]).catch(err => console.warn('MathJax error:', err));
+    }
+};
+
+window.closeTraceModal = function(event) {
+    // Klik backdrop juga tutup (event.target = backdrop)
+    if (event && event.target && event.target.id !== 'traceModal' && event.currentTarget?.id !== 'traceModal') {
+        // Tidak menutup jika klik di dalam modal content
+    }
+    const modal = document.getElementById('traceModal');
+    if (modal) modal.classList.remove('open');
+    document.body.style.overflow = '';
+};
+
+// ESC key untuk tutup modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('traceModal');
+        if (modal && modal.classList.contains('open')) closeTraceModal();
+    }
+});
 

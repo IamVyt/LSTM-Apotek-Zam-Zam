@@ -59,10 +59,18 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 
 <main class="main-content">
-    <div class="page-header">
+    <div class="page-header predictions-header-row">
         <div>
             <h1>Prediksi Persediaan LSTM</h1>
             <p class="subtitle">Pemrosesan data menggunakan Recurrent Neural Network.</p>
+        </div>
+        <!-- Toggle Mode Akademis -->
+        <div class="academic-toggle-wrap" title="Tampilkan rumus matematis & tab teknis LSTM">
+            <div>
+                <span class="toggle-label">Mode Akademis</span>
+                <span class="toggle-hint">Rumus + Dapur Pacu LSTM</span>
+            </div>
+            <div class="academic-toggle" id="academicToggle" onclick="toggleAcademicMode()" role="switch" aria-checked="false"></div>
         </div>
     </div>
 
@@ -125,7 +133,10 @@ include __DIR__ . '/../includes/sidebar.php';
                             <option value="100">100 epochs</option>
                             <option value="200">200 epochs</option>
                             <option value="300">300 epochs</option>
-                            <option value="500" selected>500 epochs (Max)</option>
+                            <option value="500">500 epochs</option>
+                            <option value="700">700 epochs</option>
+                            <option value="1000">1000 epochs</option>
+                            <option value="1500" selected>1500 epochs (Max)</option>
                         </select>
                     </div>
                     <div class="param-field">
@@ -133,9 +144,9 @@ include __DIR__ . '/../includes/sidebar.php';
                             Learning Rate <span class="param-badge">Optimizer</span>
                         </label>
                         <select class="form-control" id="lrSelect">
-                            <option value="0.001">0.001</option>
+                            <option value="0.001" selected>0.001</option>
                             <option value="0.005">0.005</option>
-                            <option value="0.01" selected>0.01</option>
+                            <option value="0.01">0.01</option>
                             <option value="0.015">0.015</option>
                             <option value="0.02">0.02</option>
                             <option value="0.05">0.05</option>
@@ -203,21 +214,6 @@ include __DIR__ . '/../includes/sidebar.php';
                         <div class="log-line"><span class="log-prefix">[SYSTEM]</span> Menunggu proses dimulai...</div>
                     </div>
 
-                    <!-- ═══════ METRICS CARDS (Moved here) ═══════ -->
-                    <div class="grid grid-3 mt-3" id="trainingMetrics" style="display: none; gap: 12px;">
-                        <div class="metric-card-bordered border-red" style="padding: 16px;">
-                            <h4 style="font-size: 0.7rem; margin-bottom: 4px;">MSE</h4>
-                            <div class="metric-value" id="metricMSE" style="font-size: 1.2rem;">-</div>
-                        </div>
-                        <div class="metric-card-bordered border-orange" style="padding: 16px;">
-                            <h4 style="font-size: 0.7rem; margin-bottom: 4px;">RMSE</h4>
-                            <div class="metric-value" id="metricRMSE" style="font-size: 1.2rem;">-</div>
-                        </div>
-                        <div class="metric-card-bordered border-green" style="padding: 16px;">
-                            <h4 style="font-size: 0.7rem; margin-bottom: 4px;">MAPE</h4>
-                            <div class="metric-value" id="metricMAPE" style="font-size: 1.2rem;">-</div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -288,132 +284,303 @@ include __DIR__ . '/../includes/sidebar.php';
 
 
 
-    <!-- ═══════ PREDICTION RESULTS (hidden by default) ═══════ -->
+    <!-- ═══════ PREDICTION RESULTS — HERO + TAB-BASED LAYOUT ═══════ -->
     <div id="predictionResults" style="display:none;">
-        <div class="result-grid-2">
-            <!-- KOLOM KIRI (Visuals / Grafik) -->
-            <div class="result-col-left">
-                <!-- Chart Prediksi vs Aktual -->
-                <div class="card mb-3 fade-in result-section-reveal">
-                    <div class="card-header card-header-accent">
-                        <h3>
-                            <i data-lucide="trending-up"></i> Visualisasi Prediksi vs Aktual
-                        </h3>
-                    </div>
-                    <div class="chart-container" style="height:360px;">
-                        <canvas id="predictionChart"></canvas>
-                    </div>
-                </div>
 
-                <!-- SECTION 2: GRAFIK LOSS PER EPOCH -->
-                <div class="card mb-3 fade-in result-section-reveal" id="sectionLossChart" style="display:none;">
-                    <div class="card-header">
-                        <h3>📉 Grafik Loss per Epoch (Konvergensi Model)</h3>
-                    </div>
-                    <div class="chart-container" style="height:320px;">
+        <!-- ═════ HERO SECTION — selalu terlihat (MAPE, RMSE, Rekomendasi) ═════ -->
+        <div class="result-hero result-section-reveal" id="resultHero">
+            <div class="hero-rekom-card" id="heroRekom">
+                <span class="hero-rekom-label">💊 Rekomendasi Tindakan</span>
+                <div class="hero-rekom-status">
+                    <span id="heroRekomStatus">—</span>
+                    <span class="hero-status-badge hero-status-normal" id="heroRekomBadge">NORMAL</span>
+                </div>
+                <div class="hero-rekom-text" id="heroRekomText">Menunggu hasil prediksi…</div>
+            </div>
+            <div class="hero-metric-card">
+                <span class="hm-label">MAPE</span>
+                <span class="hm-value" id="heroMAPE">—%</span>
+                <span class="hm-class-badge hm-class-fair" id="heroMAPEClass">—</span>
+                <span style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;" id="heroMAPEAll" title="MAPE test set (20% terakhir data) — metrik generalisasi model">Test set: —</span>
+            </div>
+            <div class="hero-metric-card">
+                <span class="hm-label">RMSE</span>
+                <span class="hm-value" id="heroRMSE">—</span>
+                <span class="hm-sub">Akurasi: <strong id="heroAccuracy">—%</strong></span>
+            </div>
+        </div>
+
+        <!-- ═════ TAB NAVIGATION ═════ -->
+        <div class="result-tabs result-section-reveal" role="tablist">
+            <button class="result-tab active" data-tab="tab-visual" onclick="switchResultTab('tab-visual')" role="tab">
+                <i data-lucide="line-chart" class="tab-icon"></i> Visualisasi Grafik
+            </button>
+            <button class="result-tab" data-tab="tab-tabel" onclick="switchResultTab('tab-tabel')" role="tab">
+                <i data-lucide="table" class="tab-icon"></i> Tabel Prediksi
+            </button>
+            <button class="result-tab tab-academic academic-only" data-tab="tab-dapur" onclick="switchResultTab('tab-dapur')" role="tab">
+                <i data-lucide="cpu" class="tab-icon"></i> Dapur Pacu LSTM
+            </button>
+        </div>
+
+        <!-- ═════ TAB 1: VISUALISASI GRAFIK ═════ -->
+        <div class="result-tab-panel active" id="tab-visual" role="tabpanel">
+            <!-- Chart Prediksi vs Aktual -->
+            <div class="card mb-3 fade-in result-section-reveal">
+                <div class="card-header card-header-accent">
+                    <h3><i data-lucide="trending-up"></i> Visualisasi Prediksi vs Aktual</h3>
+                </div>
+                <div class="chart-container" style="height:380px;">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Grafik Loss per Epoch -->
+            <div class="card mb-3 fade-in result-section-reveal" id="sectionLossChart" style="display:none;">
+                <div class="card-header">
+                    <h3>Grafik Loss per Epoch (Konvergensi Model)</h3>
+                </div>
+                <div style="padding:20px;">
+                    <div class="chart-container" style="height:340px;">
                         <canvas id="lossChart"></canvas>
                     </div>
-                    <p class="chart-description">
-                        Grafik ini menunjukkan proses pelatihan model. Loss yang menurun dan stabil menandakan model berhasil belajar (konvergen).
-                    </p>
-                </div>
-
-                <!-- SECTION 5: ANALISIS RESIDUAL / ERROR -->
-                <div class="card mb-3 fade-in result-section-reveal" id="sectionErrorChart" style="display:none;">
-                    <div class="card-header">
-                        <h3>📈 Analisis Residual / Error per Minggu</h3>
-                    </div>
-                    <div class="chart-container" style="height:300px;">
-                        <canvas id="errorChart"></canvas>
-                    </div>
-                    <p class="chart-description">
-                        Grafik error menampilkan selisih (Aktual - Prediksi) per minggu di test set. Bar hijau = under-predict (aktual > prediksi), bar merah = over-predict (prediksi > aktual).
+                    <p class="chart-description" style="margin-top:12px;">
+                        Loss yang menurun dan stabil menandakan model berhasil belajar (konvergen).
                     </p>
                 </div>
             </div>
 
-            <!-- KOLOM KANAN (Data, Tabel, Metrik) -->
-            <div class="result-col-right">
-
-
-                <!-- SECTION 1: NORMALISASI -->
-                <div class="card mb-3 fade-in result-section-reveal accordion-style" id="sectionNormalisasi" style="display:none;">
-                    <div class="card-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h3>1. Normalisasi Min-Max</h3>
-                    </div>
-                    <div class="accordion-body">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                            <p class="text-xs text-muted" id="normDescText" style="margin: 0;">
-                                Data diubah ke skala 0-1 untuk mempermudah pelatihan. (Min: -, Max: -)
-                            </p>
-                            <select id="normPageSelect" class="form-control" style="width: auto; height: auto; padding: 8px 36px 8px 16px; font-size: 0.85rem; font-weight: 600; line-height: 1.5; border-radius: 6px;" onchange="renderNormalisasiPage(this.value)">
-                                <option value="all">Semua Data</option>
-                            </select>
-                        </div>
-                        <div class="table-container" style="max-height: 250px; overflow-y: auto;">
-                            <table class="data-table" id="normalisasiTable">
-                                <thead id="normalisasiHead" style="position: sticky; top: 0; z-index: 10;"></thead>
-                                <tbody id="normalisasiTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
+            <!-- Analisis Residual -->
+            <div class="card mb-3 fade-in result-section-reveal" id="sectionErrorChart" style="display:none;">
+                <div class="card-header">
+                    <h3>Analisis Residual / Error per Minggu</h3>
                 </div>
-
-                <!-- SECTION 2: BOBOT LSTM -->
-                <div class="card mb-3 fade-in result-section-reveal accordion-style" id="sectionArsitektur" style="display:none;">
-                    <div class="card-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h3>2. Bobot Gate LSTM (Layer 1 - Unit 1)</h3>
+                <div style="padding:20px;">
+                    <div class="chart-container" style="height:320px;">
+                        <canvas id="errorChart"></canvas>
                     </div>
-                    <div class="accordion-body">
-                        <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;" id="bobotCardsContainer">
-                            <!-- Cards will be populated by JS -->
-                        </div>
-                    </div>
+                    <p class="chart-description" style="margin-top:12px;">
+                        Selisih (Aktual − Prediksi) per minggu — mencakup seluruh data (train+test). Bar hijau = under-predict, bar merah = over-predict.
+                    </p>
                 </div>
+            </div>
 
-                <!-- SECTION 3: HASIL PREDIKSI VS AKTUAL -->
-                <div class="card mb-3 fade-in result-section-reveal accordion-style" id="sectionValidasi" style="display:none;">
-                    <div class="card-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h3>3. Hasil Prediksi vs Aktual</h3>
-                    </div>
-                    <div class="accordion-body">
-                        <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                            <select id="valPageSelect" class="form-control" style="width: auto; height: auto; padding: 8px 36px 8px 16px; font-size: 0.85rem; font-weight: 600; line-height: 1.5; border-radius: 6px;" onchange="renderValidasiPage(this.value)">
-                                <option value="all">Semua Data</option>
-                            </select>
-                        </div>
-                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
-                            <table class="data-table">
-                                <thead style="position: sticky; top: 0; z-index: 10;">
-                                    <tr>
-                                        <th style="width:60px;">No</th>
-                                        <th>Periode (Mg)</th>
-                                        <th>Tanggal</th>
-                                        <th class="text-right">Aktual</th>
-                                        <th class="text-right">Prediksi</th>
-                                        <th class="text-right">Selisih</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="validasiTableBody">
-                                    <!-- Diisi oleh JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            <!-- Rumus Error Metrics (Academic Only) -->
+            <div class="card mb-3 fade-in academic-only">
+                <div class="card-header">
+                    <h3>📐 Rumus Evaluasi Error</h3>
                 </div>
-
-                <!-- SECTION 6: REKOMENDASI TINDAKAN -->
-                <div class="card mb-3 fade-in result-section-reveal" id="sectionRekomendasi" style="display:none;">
-                    <div class="card-header">
-                        <h3>💊 Rekomendasi Tindakan untuk Apoteker</h3>
-                    </div>
-                    <div id="rekomendasiContent">
-                        <!-- Diisi oleh JS -->
+                <div style="padding:20px;">
+                    <div class="math-grid">
+                        <div class="math-formula-card">
+                            <h4 class="math-title">MAPE — Mean Absolute Percentage Error</h4>
+                            <div class="math-display">
+                                $$\text{MAPE} = \frac{100\%}{n}\sum_{t=1}^{n}\left|\frac{Y_t - \hat{Y}_t}{Y_t}\right|$$
+                            </div>
+                            <p class="math-desc">Mengukur rata-rata persentase kesalahan prediksi. Semakin kecil semakin baik. &lt;10% = Sangat Baik.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">RMSE — Root Mean Square Error</h4>
+                            <div class="math-display">
+                                $$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(Y_t - \hat{Y}_t)^2}$$
+                            </div>
+                            <p class="math-desc">Akar rata-rata kuadrat selisih. Memberi penalti lebih besar pada error besar (outlier).</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">MSE — Mean Squared Error</h4>
+                            <div class="math-display">
+                                $$\text{MSE} = \frac{1}{n}\sum_{t=1}^{n}(Y_t - \hat{Y}_t)^2$$
+                            </div>
+                            <p class="math-desc">Rata-rata kuadrat selisih. Digunakan sebagai loss function selama training LSTM.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">MAE — Mean Absolute Error</h4>
+                            <div class="math-display">
+                                $$\text{MAE} = \frac{1}{n}\sum_{t=1}^{n}|Y_t - \hat{Y}_t|$$
+                            </div>
+                            <p class="math-desc">Rata-rata selisih absolut. Robust terhadap outlier dibanding RMSE.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- ═════ TAB 2: TABEL PREDIKSI ═════ -->
+        <div class="result-tab-panel" id="tab-tabel" role="tabpanel">
+            <div class="card mb-3 fade-in result-section-reveal" id="sectionValidasi">
+                <div class="card-header">
+                    <h3>Data Training &amp; Validasi (Semua Data)</h3>
+                </div>
+                <div style="padding:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                        <p class="text-xs text-muted" style="margin:0;">
+                            <span style="background:#f3f4f6;color:#6b7280;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;">TRAIN</span> = 80% data pelatihan &nbsp;|&nbsp;
+                            <span style="background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;">TEST</span> = 20% validasi &nbsp;|&nbsp;
+                            <span style="background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;">FUTURE</span> = prediksi masa depan
+                        </p>
+                        <select id="valPageSelect" class="form-control" style="width:auto; height:auto; padding:8px 36px 8px 16px; font-size:0.85rem; font-weight:600; line-height:1.5; border-radius:6px;" onchange="renderValidasiPage(this.value)">
+                            <option value="all">Semua Data</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">No</th>
+                                    <th>Periode (Mg)</th>
+                                    <th>Tanggal</th>
+                                    <th class="text-right">Aktual</th>
+                                    <th class="text-right">Prediksi</th>
+                                    <th class="text-right">Selisih</th>
+                                    <th class="text-right">APE (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="validasiTableBody">
+                                <!-- Diisi oleh JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ TAB 3: DAPUR PACU LSTM (Academic Only) ═════ -->
+        <div class="result-tab-panel" id="tab-dapur" role="tabpanel">
+            <!-- Rumus Normalisasi Min-Max -->
+            <div class="card mb-3 fade-in">
+                <div class="card-header">
+                    <h3>📐 Rumus Normalisasi Min-Max</h3>
+                </div>
+                <div style="padding:20px;">
+                    <div class="math-formula-card">
+                        <div class="math-display">
+                            $$X_{\text{norm}} = \frac{X - X_{\min}}{X_{\max} - X_{\min}}$$
+                        </div>
+                        <p class="math-desc">Mentransformasi data ke skala [0, 1] agar gradient descent stabil dan tidak didominasi fitur berskala besar.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Normalisasi -->
+            <div class="card mb-3 fade-in" id="sectionNormalisasi" style="display:none;">
+                <div class="card-header">
+                    <h3>Tabel Hasil Normalisasi Min-Max</h3>
+                </div>
+                <div style="padding:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                        <p class="text-xs text-muted" id="normDescText" style="margin:0;">
+                            Data diubah ke skala 0-1 untuk mempermudah pelatihan. (Min: -, Max: -)
+                        </p>
+                        <select id="normPageSelect" class="form-control" style="width:auto; height:auto; padding:8px 36px 8px 16px; font-size:0.85rem; font-weight:600; line-height:1.5; border-radius:6px;" onchange="renderNormalisasiPage(this.value)">
+                            <option value="all">Semua Data</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="normalisasiTable">
+                            <thead id="normalisasiHead"></thead>
+                            <tbody id="normalisasiTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rumus LSTM Gates -->
+            <div class="card mb-3 fade-in">
+                <div class="card-header">
+                    <h3>📐 Rumus Arsitektur Gate LSTM</h3>
+                </div>
+                <div style="padding:20px;">
+                    <div class="math-grid">
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Forget Gate</h4>
+                            <div class="math-display">
+                                $$f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)$$
+                            </div>
+                            <p class="math-desc">Memutuskan informasi mana dari cell state sebelumnya yang dibuang.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Input Gate</h4>
+                            <div class="math-display">
+                                $$i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)$$
+                            </div>
+                            <p class="math-desc">Memutuskan informasi baru mana yang akan disimpan ke cell state.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Cell Candidate</h4>
+                            <div class="math-display">
+                                $$\tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)$$
+                            </div>
+                            <p class="math-desc">Membuat kandidat nilai baru yang akan ditambahkan ke cell state.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Cell State Update</h4>
+                            <div class="math-display">
+                                $$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$$
+                            </div>
+                            <p class="math-desc">Memperbarui cell state dengan menggabungkan informasi lama dan baru.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Output Gate</h4>
+                            <div class="math-display">
+                                $$o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)$$
+                            </div>
+                            <p class="math-desc">Memutuskan bagian mana dari cell state yang menjadi output.</p>
+                        </div>
+                        <div class="math-formula-card">
+                            <h4 class="math-title">Hidden State Output</h4>
+                            <div class="math-display">
+                                $$h_t = o_t \odot \tanh(C_t)$$
+                            </div>
+                            <p class="math-desc">Output akhir yang diteruskan ke timestep berikutnya dan ke layer atas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bobot Gate LSTM Hasil Training -->
+            <div class="card mb-3 fade-in" id="sectionArsitektur" style="display:none;">
+                <div class="card-header">
+                    <h3>Hasil Bobot Gate LSTM (Layer 1)</h3>
+                </div>
+                <div style="padding:20px;">
+                    <p class="text-xs text-muted" style="margin:0 0 16px 0;">
+                        Nilai bobot rata-rata setiap gate LSTM setelah training selesai.
+                    </p>
+                    <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;" id="bobotCardsContainer">
+                        <!-- diisi oleh JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden compatibility container (for backward-compat with old JS references) -->
+        <div id="sectionRekomendasi" style="display:none;">
+            <div id="rekomendasiContent"></div>
+        </div>
+
     </div><!-- end predictionResults -->
+
+    <!-- ═════ MODAL TRACEABILITY — Pembuktian Manual 1 Baris Data ═════ -->
+    <div class="trace-modal-backdrop" id="traceModal" onclick="closeTraceModal(event)">
+        <div class="trace-modal" onclick="event.stopPropagation()">
+            <div class="trace-modal-header">
+                <div>
+                    <h2 class="trace-modal-title">🔬 Pembuktian Manual Perhitungan</h2>
+                    <p class="trace-modal-subtitle" id="traceModalSubtitle">Minggu —</p>
+                </div>
+                <button class="trace-modal-close" onclick="closeTraceModal()" aria-label="Tutup">×</button>
+            </div>
+            <div class="trace-modal-body" id="traceModalBody">
+                <!-- Diisi oleh JS -->
+            </div>
+            <div class="trace-modal-footer">
+                <p class="trace-modal-note">
+                    📖 Perhitungan diatas membuktikan jejak (traceability) bagaimana sistem menghasilkan prediksi untuk minggu ini, dari input mentah hingga output final.
+                </p>
+                <button class="btn btn-primary" onclick="closeTraceModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
     <!-- 4. Riwayat Prediksi (selalu tampil, di luar predictionResults) -->
     <div class="card mt-3 mb-3 fade-in">
         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -610,8 +777,67 @@ $mainV   = file_exists("$jsBase/main.js")   ? filemtime("$jsBase/main.js")   : t
 $chartsV = file_exists("$jsBase/charts.js") ? filemtime("$jsBase/charts.js") : time();
 $lstmV   = file_exists("$jsBase/lstm.js")   ? filemtime("$jsBase/lstm.js")   : time();
 ?>
+<!-- MathJax untuk render rumus matematis di Mode Akademis -->
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+    },
+    svg: { fontCache: 'global' },
+    startup: { typeset: false }  // di-typeset manual saat Mode Akademis ON
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="mathjaxLib" defer></script>
+
 <script src="<?php echo BASE_URL; ?>/assets/js/main.js?v=<?= $mainV ?>"></script>
 <script src="<?php echo BASE_URL; ?>/assets/js/charts.js?v=<?= $chartsV ?>"></script>
 <script src="<?php echo BASE_URL; ?>/assets/js/lstm.js?v=<?= $lstmV ?>"></script>
+
+<!-- Tab switching & Academic mode toggle -->
+<script>
+function switchResultTab(tabId) {
+    document.querySelectorAll('.result-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+    document.querySelectorAll('.result-tab-panel').forEach(p => p.classList.toggle('active', p.id === tabId));
+    // Re-render charts inside tab kalau perlu (Chart.js auto-resizes saat visible)
+    if (window.predictionChart) window.predictionChart.resize();
+    if (window.lossChartInstance) window.lossChartInstance.resize();
+    if (window.errorChartInstance) window.errorChartInstance.resize();
+}
+
+function toggleAcademicMode() {
+    const toggle = document.getElementById('academicToggle');
+    const isOn = !toggle.classList.contains('on');
+    toggle.classList.toggle('on', isOn);
+    toggle.setAttribute('aria-checked', isOn ? 'true' : 'false');
+    document.body.classList.toggle('academic-mode', isOn);
+    localStorage.setItem('academicMode', isOn ? '1' : '0');
+
+    // Render rumus MathJax saat ON pertama kali
+    if (isOn && window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.warn('MathJax typeset error:', err));
+    }
+    // Kalau lagi di tab dapur pacu dan mode dimatikan, pindah ke tab visual
+    if (!isOn) {
+        const dapurTab = document.querySelector('.result-tab[data-tab="tab-dapur"]');
+        if (dapurTab && dapurTab.classList.contains('active')) switchResultTab('tab-visual');
+    }
+}
+
+// Restore academic mode dari localStorage saat halaman dimuat
+document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('academicMode') === '1') {
+        toggleAcademicMode();
+    }
+});
+</script>
+<!-- CSS: Badge TRAIN/TEST di tabel validasi -->
+<style>
+.row-train-dim td { opacity: 0.78; }
+.row-train-dim:hover td { opacity: 1; background-color: #f9fafb; cursor: pointer; }
+.row-test-highlight td { background-color: #eff6ff !important; }
+.row-test-highlight:hover td { background-color: #dbeafe !important; cursor: pointer; }
+</style>
 </body>
 </html>
