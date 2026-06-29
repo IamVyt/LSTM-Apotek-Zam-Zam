@@ -122,31 +122,31 @@ async function waitForPythonService() {
 
 async function ensurePythonServiceRunning() {
     consoleLog('Memeriksa Python LSTM service...', 'epoch');
-    updateTrainingStat('trainStatStatus', '🔍');
+    updateTrainingStat('trainStatStatus', '\u{1F50D}');
     const isRunning = await checkPythonService();
     if (isRunning) {
-        consoleLog('✓ Python service aktif', 'success');
+        consoleLog('\u2713 Python service aktif', 'success');
         return true;
     }
 
     consoleLog('Python service belum aktif. Menyalakan otomatis...', 'epoch');
-    updateTrainingStat('trainStatStatus', '🔄');
+    updateTrainingStat('trainStatStatus', '\u{1F504}');
     showToast('Python service belum jalan. Menyalakan otomatis... (~30 detik)', 'info');
     const spawn = await spawnPythonService();
     if (!spawn.success) {
-        consoleLog('✗ Gagal start Python service: ' + (spawn.message || 'unknown'), 'error');
+        consoleLog('\u2717 Gagal start Python service: ' + (spawn.message || 'unknown'), 'error');
         showToast('Gagal start Python service: ' + (spawn.message || 'unknown'), 'error');
         return false;
     }
-    if (spawn.already_running) { consoleLog('✓ Service sudah aktif', 'success'); return true; }
+    if (spawn.already_running) { consoleLog('\u2713 Service sudah aktif', 'success'); return true; }
 
     const wait = await waitForPythonService();
     if (wait.success && wait.running) {
-        consoleLog(`✓ Python service ready (${wait.wait_seconds}s)`, 'success');
+        consoleLog(`\u2713 Python service ready (${wait.wait_seconds}s)`, 'success');
         showToast(`Python service ready dalam ${wait.wait_seconds} detik!`, 'success');
         return true;
     } else {
-        consoleLog('✗ Service timeout. Cek python/service.log', 'error');
+        consoleLog('\u2717 Service timeout. Cek python/service.log', 'error');
         showToast('Service tidak ready. Coba lagi atau cek python/service.log.', 'warning');
         return false;
     }
@@ -194,7 +194,7 @@ async function runPrediction() {
         updateTrainingStat('trainStatLR', lr);
         updateTrainingStat('trainStatEpoch', '0/' + epochs);
         updateTrainingStat('trainStatLoss', '-');
-        updateTrainingStat('trainStatStatus', '⏳');
+        updateTrainingStat('trainStatStatus', '\u23F3');
 
         // Step 2: Preprocessing (check service)
         setStep(1);
@@ -204,12 +204,12 @@ async function runPrediction() {
         const ok = await ensurePythonServiceRunning();
         if (!ok) { btn.disabled = false; btn.innerHTML = originalText; hideTrainingPanel(); resetStepper(); return; }
 
-        consoleLog('✓ Data historis dimuat. Normalisasi Min-Max diterapkan.', 'success');
+        consoleLog('\u2713 Data historis dimuat. Normalisasi Min-Max diterapkan.', 'success');
 
         // Step 3: Training
         setStep(2);
         consoleLog('Memulai training LSTM...');
-        updateTrainingStat('trainStatStatus', '🏋️');
+        updateTrainingStat('trainStatStatus', '\u{1F3CB}\uFE0F');
 
         timer = setInterval(() => {
             elapsed++;
@@ -240,7 +240,7 @@ async function runPrediction() {
         if (response.success) {
             // Step 4: Results
             setStep(3);
-            updateTrainingStat('trainStatStatus', '✅');
+            updateTrainingStat('trainStatStatus', '\u2705');
             
             if (spinnerIcon) spinnerIcon.style.display = 'none';
             if (trainingTitle) trainingTitle.textContent = 'Training Selesai!';
@@ -249,16 +249,30 @@ async function runPrediction() {
             updateTrainingStat('trainStatEpoch', (mp.epochs_actual || epochs) + '/' + (mp.epochs_configured || epochs));
             updateTrainingStat('trainStatLoss', response.data.loss_history?.length > 0
                 ? response.data.loss_history[response.data.loss_history.length - 1].toFixed(6) : '-');
-            consoleLog(`✓ Training selesai! Epoch terbaik: ${mp.epoch_terbaik || '-'}`, 'success');
-            consoleLog(`  Note: Sistem berhenti di epoch ${mp.epochs_actual}. Model terbaik ada di epoch ${mp.epoch_terbaik} (EarlyStopping patience ≈ ${Math.round((mp.epochs_configured || 1500) * 0.2)} epoch).`, 'epoch');
+            consoleLog(`\u2713 Training selesai! Epoch terbaik: ${mp.epoch_terbaik || '-'}`, 'success');
+            consoleLog(`  Note: Sistem berhenti di epoch ${mp.epochs_actual}. Model terbaik ada di epoch ${mp.epoch_terbaik} (EarlyStopping patience = ${mp.patience_used || 50} epoch).`, 'epoch');
             consoleLog(`  MAPE (Semua Data): ${response.data.mape}% | Test Set (20%): ${response.data.mape_test ?? '-'}% | Akurasi: ${response.data.accuracy}%`, 'success');
+
+            // ── Auto-Tune result log ──────────────────────────────────────────
+            if (response.data.model_is_degenerate) {
+                consoleLog(`  \u26A0\uFE0F MODEL DEGENERATE (kernel sum: ${response.data.kernel_sum?.toFixed(6) ?? '-'}) \u2014 coba kurangi epoch atau ganti window size`, 'warning');
+            }
+            const trialsLog = mp.trials_log || [];
+            if (trialsLog.length > 1) {
+                const bestTrial = trialsLog.reduce((a, b) => a.mape < b.mape ? a : b);
+                const trialSummary = trialsLog.map(t => `Seed${t.seed}/LR${t.lr}=${t.mape}%`).join(' | ');
+                consoleLog(`  Auto-Tune (${trialsLog.length} trial): ${trialSummary}`, 'epoch');
+                consoleLog(`  \u2705 Konfigurasi terbaik: Seed=${bestTrial.seed}, LR=${bestTrial.lr}, MAPE=${bestTrial.mape}%`, 'success');
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             consoleLog(`  Klasifikasi: ${response.data.mape_class || '-'}`, 'success');
             consoleLog(`  Training time: ${mp.training_time_seconds || elapsed}s`, 'epoch');
 
             displayPredictionResults(response.data);
-            showToast(`Prediksi berhasil! (${elapsed}s) — ${response.data.mape_class || ''}`, 'success');
+            showToast(`Prediksi berhasil! (${elapsed}s) \u2014 ${response.data.mape_class || ''}`, 'success');
         } else {
-            consoleLog('✗ ' + (response.message || 'Gagal'), 'error');
+            consoleLog('\u2717 ' + (response.message || 'Gagal'), 'error');
             showToast(response.message || 'Gagal menjalankan prediksi', 'error');
             
             if (spinnerIcon) spinnerIcon.style.display = 'none';
@@ -267,7 +281,7 @@ async function runPrediction() {
         }
     } catch (error) {
         console.error('Prediction error:', error);
-        consoleLog('✗ Error: ' + error.message, 'error');
+        consoleLog('\u2717 Error: ' + error.message, 'error');
         showToast('Gagal menjalankan prediksi: ' + error.message, 'error');
         
         const spinnerIcon = document.getElementById('trainingSpinnerIcon');
@@ -475,7 +489,7 @@ function renderHeroSection(data, rmseVal, mapeVal, accVal) {
     const rekom = data.rekomendasi;
     if (rekom) {
         const status = (rekom.status || 'NORMAL').toUpperCase();
-        const icon = status === 'TINGGI' ? '📈' : status === 'RENDAH' ? '📉' : '✅';
+        const icon = status === 'TINGGI' ? '\u{1F4C8}' : status === 'RENDAH' ? '\u{1F4C9}' : '\u2705';
         const badgeCls = status === 'TINGGI' ? 'hero-status-tinggi' : status === 'RENDAH' ? 'hero-status-rendah' : 'hero-status-normal';
 
         const heroRekomStatus = document.getElementById('heroRekomStatus');
@@ -671,9 +685,7 @@ function renderRekomendasi(data) {
     section.style.display = 'block';
 
     const status = (rekom.status || 'NORMAL').toUpperCase();
-    const statusClass = status === 'TINGGI' ? 'status-tinggi' : status === 'RENDAH' ? 'status-rendah' : 'status-normal';
-    const badgeClass = status === 'TINGGI' ? 'badge-tinggi' : status === 'RENDAH' ? 'badge-rendah' : 'badge-normal';
-    const statusIcon = status === 'TINGGI' ? '📈' : status === 'RENDAH' ? '📉' : '✅';
+    const statusIcon = status === 'TINGGI' ? '\u{1F4C8}' : status === 'RENDAH' ? '\u{1F4C9}' : '\u2705';
 
     const contentEl = document.getElementById('rekomendasiContent');
     if (contentEl) {
@@ -803,7 +815,7 @@ async function viewHistory(id) {
             const dateStr = new Date(d.created_at).toLocaleDateString('id-ID', {
                 day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
-            subtitle.textContent = `${d.nama_obat} — ${dateStr}`;
+            subtitle.textContent = `${d.nama_obat} \u2014 ${dateStr}`;
         }
 
         // Update metric cards
@@ -875,7 +887,7 @@ async function viewHistory(id) {
         if (rekomContent && d.rekomendasi) {
             const rekom = d.rekomendasi;
             const status = (rekom.status || 'NORMAL').toUpperCase();
-            const statusIcon = status === 'TINGGI' ? '📈' : status === 'RENDAH' ? '📉' : '✅';
+            const statusIcon = status === 'TINGGI' ? '\u{1F4C8}' : status === 'RENDAH' ? '\u{1F4C9}' : '\u2705';
             const themeColor = status === 'TINGGI' ? '#ef4444' : status === 'RENDAH' ? '#f59e0b' : '#10b981';
             const themeBg = status === 'TINGGI' ? '#fee2e2' : status === 'RENDAH' ? '#fef3c7' : '#d1fae5';
 
@@ -933,7 +945,6 @@ function setText(id, value) {
 
 // ═══════════════════════════════════════════════════════════════════
 // TRACEABILITY MODAL — Pembuktian Manual Perhitungan Per-Baris
-// Memenuhi jawaban: "Coba jabarkan bagaimana sistem menghitung prediksi minggu ke-X"
 // ═══════════════════════════════════════════════════════════════════
 
 const FEATURE_LABELS = [
@@ -949,185 +960,185 @@ window.showTraceModal = function(validationIdx) {
     const data = window.currentPredictionData;
     if (!data || !data.validation_detail) return;
     const entry = data.validation_detail[validationIdx];
-    if (!entry || !entry.trace) {
-        console.warn('Trace data tidak tersedia untuk baris ini.');
-        return;
-    }
+    if (!entry || !entry.trace) { console.warn('Trace data tidak tersedia.'); return; }
 
     const trace = entry.trace;
+    const g = trace.gates;
     const minggu = entry.minggu;
     const tanggal = entry.tanggal_mulai || '-';
-    const normInfo = (data.norm_info && data.norm_info['Total Keluar']) || {};
 
-    // Subtitle
-    setText('traceModalSubtitle', `Minggu ke-${minggu} · ${tanggal}`);
+    setText('traceModalSubtitle', `Minggu ke-${minggu} \u00B7 ${tanggal}`);
 
-    // ─── Build body content (6 langkah) ───
     const body = document.getElementById('traceModalBody');
     if (!body) return;
 
-    const inputRows = trace.input_window.map((win, i) => `
+    const featureHeaders = FEATURE_LABELS.map(f => `<th>${f}</th>`).join('');
+    const inputRows = trace.input_window.map(win => `
         <tr>
             <td class="fw-600">Mg ${win.row_minggu}</td>
             ${win.features_asli.map(v => `<td class="num-asli">${v.toLocaleString('id-ID')}</td>`).join('')}
-        </tr>
-    `).join('');
-
-    const normRows = trace.input_window.map((win, i) => `
+        </tr>`).join('');
+    const normRows = trace.input_window.map(win => `
         <tr>
             <td class="fw-600">Mg ${win.row_minggu}</td>
             ${win.features_norm.map(v => `<td class="num-norm">${v.toFixed(6)}</td>`).join('')}
-        </tr>
-    `).join('');
+        </tr>`).join('');
 
-    const featureHeaders = FEATURE_LABELS.map(f => `<th>${f}</th>`).join('');
-
-    // Contoh perhitungan denormalisasi untuk target (Total Keluar)
-    const predNormStr = trace.prediksi_norm.toFixed(6);
-    const tRange = trace.target_range;
+    const dlm = String.fromCharCode(36, 36);
+    const x = trace.input_window[0]?.features_norm || [];
     const tMin = trace.target_min;
-    const predDenorm = trace.prediksi_norm * tRange + tMin;
+    const tMax = trace.target_max;
+    const tRange = trace.target_range;
+    const predNorm = trace.prediksi_norm;
+
+    function gateCalcHtml(W, U, h_prev, xVals, b, z, label) {
+        if (!W) return '<em style="color:#94a3b8;">Data bobot tidak tersedia (prediksi lama)</em>';
+        return `
+            <p class="trace-step-desc" style="margin-top:10px;">Substitusi nilai bobot (${label}):</p>
+            <div class="trace-formula" style="font-size:0.82rem;">
+                ${dlm}z = (U \\times h_{t-1}) + (W_1 \\times x_1) + \\cdots + (W_5 \\times x_5) + b${dlm}
+            </div>
+            <div class="trace-formula" style="background:#f8fafc;font-size:0.78rem;margin-top:6px;">
+                <div style="text-align:left;padding:8px 12px;font-family:monospace;line-height:1.8;">
+                    z = (${U?.toFixed(4) || 0} &times; ${h_prev?.toFixed(6) || 0})<br>
+                    ${W.map((w, i) => `&nbsp;&nbsp;&nbsp;&nbsp;+ (${w.toFixed(4)} &times; ${xVals[i]?.toFixed(6) || 0})`).join('<br>')}<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;+ ${b?.toFixed(4) || 0}<br>
+                    <strong>= ${z?.toFixed(6) || 0}</strong>
+                </div>
+            </div>`;
+    }
 
     body.innerHTML = `
-        <!-- STEP 1: INPUT MENTAH -->
         <div class="trace-step">
-            <div class="trace-step-header">
-                <span class="trace-step-number">1</span>
-                <h4 class="trace-step-title">Input Mentah — Window ${trace.input_window.length} Minggu Terakhir</h4>
-            </div>
-            <p class="trace-step-desc">
-                Sistem mengambil <strong>${trace.input_window.length} minggu data sebelumnya</strong> sebagai input untuk memprediksi minggu ke-${minggu}.
-                Setiap minggu memiliki 5 fitur (multivariate).
-            </p>
-            <div style="overflow-x:auto;">
-                <table class="trace-table">
-                    <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
-                    <tbody>${inputRows}</tbody>
-                </table>
+            <div class="trace-step-header"><span class="trace-step-number">1</span>
+                <h4 class="trace-step-title">Input Mentah \u2014 Data ${trace.input_window.length} Minggu</h4></div>
+            <p class="trace-step-desc">Sistem mengambil data Minggu ke-${minggu - 1} sebagai input untuk memprediksi Minggu ke-${minggu}.</p>
+            <div style="overflow-x:auto;"><table class="trace-table">
+                <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
+                <tbody>${inputRows}</tbody>
+            </table></div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">2</span>
+                <h4 class="trace-step-title">Normalisasi Min-Max ke Skala [0, 1]</h4></div>
+            <p class="trace-step-desc">Setiap fitur dinormalisasi menggunakan rumus Min-Max agar gradient descent stabil.</p>
+            <div class="trace-formula">${dlm}X_{\\text{norm}} = \\frac{X - X_{\\min}}{X_{\\max} - X_{\\min}}${dlm}</div>
+            <div style="overflow-x:auto;"><table class="trace-table">
+                <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
+                <tbody>${normRows}</tbody>
+            </table></div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">3</span>
+                <h4 class="trace-step-title">Forget Gate &mdash; Menentukan Informasi yang Dilupakan</h4></div>
+            <p class="trace-step-desc"><em>Forget gate</em> menentukan informasi <em>cell state</em> sebelumnya yang akan dipertahankan atau dibuang menggunakan fungsi sigmoid.</p>
+            <div class="trace-formula">${dlm}f_t = \\sigma(U_f \\cdot h_{t-1} + W_f \\cdot x_t + b_f)${dlm}</div>
+            <p class="trace-step-desc">h<sub>t-1</sub> = <strong>${g?.h_prev?.toFixed(6) ?? '0.000000'}</strong>, C<sub>t-1</sub> = <strong>${g?.c_prev?.toFixed(6) ?? '0.000000'}</strong></p>
+            ${gateCalcHtml(g?.Wf, g?.Uf, g?.h_prev, x, g?.bf, g?.z_f, 'Forget Gate')}
+            <div class="trace-formula" style="margin-top:8px;">${dlm}f_t = \\sigma(${g?.z_f?.toFixed(6) || 0}) = ${g?.f_t?.toFixed(6) || 0}${dlm}</div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">4</span>
+                <h4 class="trace-step-title">Input Gate &mdash; Menentukan Informasi Baru</h4></div>
+            <p class="trace-step-desc"><em>Input gate</em> menentukan informasi baru yang akan disimpan ke <em>cell state</em>.</p>
+            <div class="trace-formula">${dlm}i_t = \\sigma(U_i \\cdot h_{t-1} + W_i \\cdot x_t + b_i)${dlm}</div>
+            ${gateCalcHtml(g?.Wi, g?.Ui, g?.h_prev, x, g?.bi, g?.z_i, 'Input Gate')}
+            <div class="trace-formula" style="margin-top:8px;">${dlm}i_t = \\sigma(${g?.z_i?.toFixed(6) || 0}) = ${g?.i_t?.toFixed(6) || 0}${dlm}</div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">5</span>
+                <h4 class="trace-step-title">Candidate Cell State &mdash; Nilai Kandidat Baru</h4></div>
+            <p class="trace-step-desc"><em>Candidate cell state</em> menyediakan nilai baru yang berpotensi ditambahkan ke memori menggunakan fungsi tanh.</p>
+            <div class="trace-formula">${dlm}\\tilde{C}_t = \\tanh(U_c \\cdot h_{t-1} + W_c \\cdot x_t + b_c)${dlm}</div>
+            ${gateCalcHtml(g?.Wc, g?.Uc, g?.h_prev, x, g?.bc, g?.z_c, 'Candidate Cell')}
+            <div class="trace-formula" style="margin-top:8px;">${dlm}\\tilde{C}_t = \\tanh(${g?.z_c?.toFixed(6) || 0}) = ${g?.c_tilde?.toFixed(6) || 0}${dlm}</div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">6</span>
+                <h4 class="trace-step-title">Pembaruan Cell State &mdash; Memori Jangka Panjang</h4></div>
+            <p class="trace-step-desc"><em>Cell state</em> merupakan komponen inti LSTM yang berfungsi sebagai memori jangka panjang.</p>
+            <div class="trace-formula">${dlm}C_t = f_t \\odot C_{t-1} + i_t \\odot \\tilde{C}_t${dlm}</div>
+            <div class="trace-formula" style="background:#f8fafc;font-size:0.85rem;">
+                ${dlm}C_t = ${g?.f_t?.toFixed(6) || 0} \\times ${g?.c_prev?.toFixed(6) || 0} + ${g?.i_t?.toFixed(6) || 0} \\times ${g?.c_tilde?.toFixed(6) || 0} = ${g?.c_t?.toFixed(6) || 0}${dlm}
             </div>
         </div>
 
-        <!-- STEP 2: NORMALISASI MIN-MAX -->
         <div class="trace-step">
-            <div class="trace-step-header">
-                <span class="trace-step-number">2</span>
-                <h4 class="trace-step-title">Normalisasi Min-Max ke Skala [0, 1]</h4>
-            </div>
-            <p class="trace-step-desc">
-                Setiap fitur dinormalisasi menggunakan rumus Min-Max agar gradient descent stabil.
-            </p>
-            <div class="trace-formula">
-                $$X_{\\text{norm}} = \\frac{X - X_{\\min}}{X_{\\max} - X_{\\min}}$$
-            </div>
-            <p class="trace-step-desc">
-                Hasil normalisasi window di atas (skala 0-1):
-            </p>
-            <div style="overflow-x:auto;">
-                <table class="trace-table">
-                    <thead><tr><th>Periode</th>${featureHeaders}</tr></thead>
-                    <tbody>${normRows}</tbody>
-                </table>
+            <div class="trace-step-header"><span class="trace-step-number">7</span>
+                <h4 class="trace-step-title">Output Gate &mdash; Menentukan Keluaran</h4></div>
+            <p class="trace-step-desc"><em>Output gate</em> menentukan informasi apa dari <em>cell state</em> yang akan dikeluarkan sebagai <em>hidden state</em>.</p>
+            <div class="trace-formula">${dlm}o_t = \\sigma(U_o \\cdot h_{t-1} + W_o \\cdot x_t + b_o)${dlm}</div>
+            ${gateCalcHtml(g?.Wo, g?.Uo, g?.h_prev, x, g?.bo, g?.z_o, 'Output Gate')}
+            <div class="trace-formula" style="margin-top:8px;">${dlm}o_t = \\sigma(${g?.z_o?.toFixed(6) || 0}) = ${g?.o_t?.toFixed(6) || 0}${dlm}</div>
+        </div>
+
+        <div class="trace-step">
+            <div class="trace-step-header"><span class="trace-step-number">8</span>
+                <h4 class="trace-step-title">Hidden State &mdash; Output LSTM</h4></div>
+            <p class="trace-step-desc"><em>Hidden state</em> dihitung dengan mengalikan <em>output gate</em> terhadap aktivasi tanh dari <em>cell state</em>.</p>
+            <div class="trace-formula">${dlm}h_t = o_t \\odot \\tanh(C_t)${dlm}</div>
+            <div class="trace-formula" style="background:#f8fafc;font-size:0.85rem;">
+                ${dlm}h_t = ${g?.o_t?.toFixed(6) || 0} \\times \\tanh(${g?.c_t?.toFixed(6) || 0}) = ${g?.h_t?.toFixed(6) || 0}${dlm}
             </div>
         </div>
 
-        <!-- STEP 3: FORWARD PROPAGATION -->
         <div class="trace-step">
-            <div class="trace-step-header">
-                <span class="trace-step-number">3</span>
-                <h4 class="trace-step-title">Forward Propagation Melalui Arsitektur LSTM</h4>
-            </div>
-            <p class="trace-step-desc">
-                Data ternormalisasi diumpankan ke jaringan dengan arsitektur:
-                <strong>LSTM(16 hidden units) → Dense(8 ReLU) → Dense(1)</strong>.
-                Setiap gate LSTM (Forget, Input, Cell, Output) melakukan perhitungan matriks
-                pada setiap timestep window. Sangat kompleks untuk dijabarkan manual karena melibatkan
-                ratusan bobot, namun secara konseptual:
-            </p>
-            <div class="trace-formula">
-                $$\\hat{y}_{\\text{norm}} = \\text{Dense}_{1}\\Big(\\text{ReLU}\\big(\\text{Dense}_{8}(\\text{LSTM}_{16}(X_{\\text{norm}}))\\big)\\Big)$$
-            </div>
-            <p class="trace-step-desc" style="margin-top:14px;">
-                Hasil output mentah model (masih dalam skala ternormalisasi):
-            </p>
-            <div class="trace-formula" style="background:#fef3c7; border-color:#fbbf24;">
-                $$\\hat{y}_{\\text{norm}} = ${predNormStr}$$
+            <div class="trace-step-header"><span class="trace-step-number">9</span>
+                <h4 class="trace-step-title">Output Layer &mdash; Nilai Prediksi Ternormalisasi</h4></div>
+            <p class="trace-step-desc"><em>Hidden state</em> h<sub>t</sub> dilewatkan ke lapisan keluaran untuk menghasilkan nilai prediksi ternormalisasi.</p>
+            <div class="trace-formula">${dlm}y_t = W_y \\cdot h_t + b_y${dlm}</div>
+            <div class="trace-formula" style="background:#fef3c7;border-color:#fbbf24;font-size:0.85rem;">
+                ${dlm}y_t = ${g?.Wy?.toFixed(4) || 0} \\times ${g?.h_t?.toFixed(6) || 0} + ${g?.by?.toFixed(4) || 0} = ${predNorm.toFixed(6)}${dlm}
             </div>
         </div>
 
-        <!-- STEP 4: DENORMALISASI -->
         <div class="trace-step">
-            <div class="trace-step-header">
-                <span class="trace-step-number">4</span>
-                <h4 class="trace-step-title">Denormalisasi ke Skala Asli (Unit Obat)</h4>
+            <div class="trace-step-header"><span class="trace-step-number">10</span>
+                <h4 class="trace-step-title">Denormalisasi ke Skala Asli (Unit Obat)</h4></div>
+            <p class="trace-step-desc">Nilai y<sub>t</sub> dikembalikan ke skala unit asli menggunakan rumus invers Min-Max.</p>
+            <div class="trace-formula">${dlm}X = X_{\\text{norm}} \\times (X_{\\max} - X_{\\min}) + X_{\\min}${dlm}</div>
+            <p class="trace-step-desc" style="margin-top:10px;">Dengan X<sub>min</sub> = <strong>${tMin.toLocaleString('id-ID')}</strong> dan X<sub>max</sub> = <strong>${tMax.toLocaleString('id-ID')}</strong>:</p>
+            <div class="trace-formula" style="background:#f8fafc;font-size:0.85rem;">
+                ${dlm}X = ${predNorm.toFixed(6)} \\times (${tMax.toLocaleString('id-ID')} - ${tMin.toLocaleString('id-ID')}) + ${tMin.toLocaleString('id-ID')} = ${entry.prediksi.toFixed(2)}${dlm}
             </div>
-            <p class="trace-step-desc">
-                Output model di skala [0,1], perlu dikembalikan ke skala unit dengan rumus inversi Min-Max:
-            </p>
-            <div class="trace-formula">
-                $$\\hat{Y} = \\hat{y}_{\\text{norm}} \\times (Y_{\\max} - Y_{\\min}) + Y_{\\min}$$
-            </div>
-            <p class="trace-step-desc" style="margin-top:14px;">
-                Substitusi nilai (untuk fitur Total Keluar — Y<sub>min</sub> = ${tMin.toLocaleString('id-ID')},
-                Y<sub>max</sub> = ${trace.target_max.toLocaleString('id-ID')}):
-            </p>
-            <div class="trace-formula">
-                $$\\hat{Y} = ${predNormStr} \\times ${tRange.toLocaleString('id-ID')} + ${tMin.toLocaleString('id-ID')} = ${predDenorm.toFixed(2)}$$
-            </div>
-            <p class="trace-step-desc" style="margin-top:14px;">
-                <strong>Prediksi akhir: ${Math.round(predDenorm).toLocaleString('id-ID')} unit obat.</strong>
-            </p>
+            <p class="trace-step-desc" style="margin-top:10px;"><strong>Prediksi akhir: ${Math.round(entry.prediksi).toLocaleString('id-ID')} unit obat.</strong></p>
         </div>
 
-        <!-- STEP 5: EVALUASI ERROR -->
         <div class="trace-step">
-            <div class="trace-step-header">
-                <span class="trace-step-number">5</span>
-                <h4 class="trace-step-title">Evaluasi Akurasi Terhadap Data Aktual</h4>
-            </div>
-            <p class="trace-step-desc">
-                Bandingkan prediksi dengan nilai aktual di Minggu ke-${minggu}:
-            </p>
-            <div class="trace-formula">
-                $$\\text{Error} = Y_{\\text{aktual}} - \\hat{Y} = ${entry.aktual.toLocaleString('id-ID')} - ${entry.prediksi.toLocaleString('id-ID')} = ${entry.error.toFixed(2)}$$
-            </div>
-            <div class="trace-formula" style="margin-top:8px;">
-                $$\\text{APE} = \\left|\\frac{Y_{\\text{aktual}} - \\hat{Y}}{Y_{\\text{aktual}}}\\right| \\times 100\\% = \\left|\\frac{${entry.error.toFixed(2)}}{${entry.aktual}}\\right| \\times 100\\% = ${entry.ape.toFixed(2)}\\%$$
+            <div class="trace-step-header"><span class="trace-step-number">11</span>
+                <h4 class="trace-step-title">Perhitungan APE sebagai Evaluasi Akurasi</h4></div>
+            <p class="trace-step-desc">Hasil prediksi disandingkan dengan data aktual untuk menghitung <em>Absolute Percentage Error</em> (APE).</p>
+            <div class="trace-formula">${dlm}\\text{APE} = \\frac{|Y_{\\text{aktual}} - \\hat{Y}|}{Y_{\\text{aktual}}} \\times 100\\%${dlm}</div>
+            <div class="trace-formula" style="background:#f8fafc;font-size:0.85rem;">
+                ${dlm}\\text{APE} = \\frac{|${entry.aktual} - ${entry.prediksi.toFixed(2)}|}{${entry.aktual}} \\times 100\\% = ${entry.ape.toFixed(2)}\\%${dlm}
             </div>
         </div>
 
-        <!-- KESIMPULAN -->
         <div class="trace-conclusion">
-            <p class="trace-conclusion-title">📊 Ringkasan Perhitungan Minggu ke-${minggu}</p>
+            <p class="trace-conclusion-title">\u{1F4CA} Ringkasan Perhitungan Minggu ke-${minggu}</p>
             <div class="trace-conclusion-grid">
-                <div class="trace-conclusion-item">
-                    <div class="lbl">Aktual</div>
-                    <div class="val" style="color:#dc2626;">${Math.round(entry.aktual).toLocaleString('id-ID')}</div>
-                </div>
-                <div class="trace-conclusion-item">
-                    <div class="lbl">Prediksi LSTM</div>
-                    <div class="val" style="color:#2563eb;">${Math.round(entry.prediksi).toLocaleString('id-ID')}</div>
-                </div>
-                <div class="trace-conclusion-item">
-                    <div class="lbl">APE</div>
-                    <div class="val">${entry.ape.toFixed(2)}%</div>
-                </div>
+                <div class="trace-conclusion-item"><div class="lbl">Aktual</div><div class="val" style="color:#dc2626;">${Math.round(entry.aktual).toLocaleString('id-ID')}</div></div>
+                <div class="trace-conclusion-item"><div class="lbl">Prediksi LSTM</div><div class="val" style="color:#2563eb;">${Math.round(entry.prediksi).toLocaleString('id-ID')}</div></div>
+                <div class="trace-conclusion-item"><div class="lbl">APE</div><div class="val">${entry.ape.toFixed(2)}%</div></div>
             </div>
         </div>
     `;
 
-    // Tampilkan modal
     const modal = document.getElementById('traceModal');
     if (modal) modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Render rumus MathJax
     if (window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([body]).catch(err => console.warn('MathJax error:', err));
     }
 };
 
 window.closeTraceModal = function(event) {
-    // Klik backdrop juga tutup (event.target = backdrop)
     if (event && event.target && event.target.id !== 'traceModal' && event.currentTarget?.id !== 'traceModal') {
         // Tidak menutup jika klik di dalam modal content
     }
@@ -1136,11 +1147,9 @@ window.closeTraceModal = function(event) {
     document.body.style.overflow = '';
 };
 
-// ESC key untuk tutup modal
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const modal = document.getElementById('traceModal');
         if (modal && modal.classList.contains('open')) closeTraceModal();
     }
 });
-

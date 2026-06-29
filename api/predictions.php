@@ -300,7 +300,7 @@ function runPrediction(PDO $db): void
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 180,
+            CURLOPT_TIMEOUT => 270,  // dinaikkan dari 180 agar tidak timeout sebelum Python selesai
             CURLOPT_CONNECTTIMEOUT => 10,
         ]);
         $resp = curl_exec($ch);
@@ -444,6 +444,9 @@ function runPrediction(PDO $db): void
             'model_params' => $result['model_params'],
             // ─── Data tambahan untuk section skripsi ───
             'arsitektur' => $result['arsitektur'] ?? null,
+            'model_is_degenerate' => $result['model_is_degenerate'] ?? false,
+            'kernel_sum' => $result['kernel_sum'] ?? null,
+            'best_seed_used' => $result['best_seed_used'] ?? null,
             'loss_history' => $result['loss_history'] ?? [],
             'val_loss_history' => $result['val_loss_history'] ?? [],
             'norm_table' => $result['norm_table'] ?? [],
