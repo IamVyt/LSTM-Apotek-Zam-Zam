@@ -214,6 +214,15 @@ function handlePost(PDO $db): void {
         case 'upload_history':
             uploadHistory($db, $input);
             break;
+        case 'delete_history':
+            deleteHistory($db, $input);
+            break;
+        case 'edit_history':
+            editHistory($db, $input);
+            break;
+        case 'delete_all_history':
+            deleteAllHistory($db, $input);
+            break;
         default:
             jsonResponse(['success' => false, 'message' => 'Action tidak valid'], 400);
     }
@@ -403,6 +412,62 @@ function uploadHistory(PDO $db, array $input): void {
         $db->rollBack();
         error_log("Upload History Error: " . $e->getMessage());
         jsonResponse(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
+
+function deleteHistory(PDO $db, array $input): void {
+    $id = (int)($input['id'] ?? 0);
+    if (!$id) {
+        jsonResponse(['success' => false, 'message' => 'ID histori diperlukan'], 400);
+    }
+
+    try {
+        $stmt = $db->prepare("DELETE FROM data_historis WHERE id = ?");
+        $stmt->execute([$id]);
+        jsonResponse(['success' => true, 'message' => 'Data histori berhasil dihapus']);
+    } catch (Exception $e) {
+        error_log("Delete History Error: " . $e->getMessage());
+        jsonResponse(['success' => false, 'message' => 'Gagal menghapus data histori'], 500);
+    }
+}
+
+function deleteAllHistory(PDO $db, array $input): void {
+    try {
+        $stmt = $db->prepare("DELETE FROM data_historis");
+        $stmt->execute();
+        jsonResponse(['success' => true, 'message' => 'Semua data histori berhasil dihapus']);
+    } catch (Exception $e) {
+        error_log("Delete All History Error: " . $e->getMessage());
+        jsonResponse(['success' => false, 'message' => 'Gagal menghapus semua data histori'], 500);
+    }
+}
+
+function editHistory(PDO $db, array $input): void {
+    $id = (int)($input['id'] ?? 0);
+    if (!$id) {
+        jsonResponse(['success' => false, 'message' => 'ID histori diperlukan'], 400);
+    }
+    
+    try {
+        $stmt = $db->prepare("UPDATE data_historis SET 
+            minggu_ke = ?, tanggal = ?, tanggal_akhir = ?, stok_awal = ?, 
+            jumlah_masuk = ?, jumlah_keluar = ?, stok_akhir = ?, rata_rata_keluar = ?
+            WHERE id = ?");
+        $stmt->execute([
+            (int)($input['minggu_ke'] ?? 1),
+            parseDate($input['tanggal'] ?? ''),
+            parseDate($input['tanggal_akhir'] ?? ''),
+            (int)($input['stok_awal'] ?? 0),
+            (int)($input['jumlah_masuk'] ?? 0),
+            (int)($input['jumlah_keluar'] ?? 0),
+            (int)($input['stok_akhir'] ?? 0),
+            (float)($input['rata_rata_keluar'] ?? 0),
+            $id
+        ]);
+        jsonResponse(['success' => true, 'message' => 'Data histori berhasil diperbarui']);
+    } catch (Exception $e) {
+        error_log("Edit History Error: " . $e->getMessage());
+        jsonResponse(['success' => false, 'message' => 'Gagal memperbarui data histori'], 500);
     }
 }
 

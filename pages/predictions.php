@@ -310,6 +310,22 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+        <!-- ═════ EXPORT BAR — tampil otomatis setelah hasil keluar ═════ -->
+        <div class="export-action-bar result-section-reveal" id="exportBar" style="display:none;">
+            <span class="export-bar-label">
+                <i data-lucide="download" class="icon-14 icon-inline"></i>
+                <span id="exportBarDrugName">Simpan hasil:</span>
+            </span>
+            <div class="export-btn-group">
+                <button class="btn btn-export-excel" onclick="exportToExcel()">
+                    <i data-lucide="file-spreadsheet" class="icon-16"></i> Excel (.xlsx)
+                </button>
+                <button class="btn btn-export-print" onclick="exportToPrint()">
+                    <i data-lucide="printer" class="icon-16"></i> Cetak / PDF
+                </button>
+            </div>
+        </div>
+
         <!-- ═════ TAB NAVIGATION ═════ -->
         <div class="result-tabs result-section-reveal" role="tablist">
             <button class="result-tab active" data-tab="tab-visual" onclick="switchResultTab('tab-visual')" role="tab">
@@ -791,6 +807,7 @@ window.MathJax = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="mathjaxLib" defer></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="<?php echo BASE_URL; ?>/assets/js/main.js?v=<?= $mainV ?>"></script>
 <script src="<?php echo BASE_URL; ?>/assets/js/charts.js?v=<?= $chartsV ?>"></script>
 <script src="<?php echo BASE_URL; ?>/assets/js/lstm.js?v=<?= $lstmV ?>"></script>
@@ -832,12 +849,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
-<!-- CSS: Badge TRAIN/TEST di tabel validasi -->
+<!-- CSS: Badge TRAIN/TEST + Export Bar -->
 <style>
 .row-train-dim td { opacity: 0.78; }
 .row-train-dim:hover td { opacity: 1; background-color: #f9fafb; cursor: pointer; }
 .row-test-highlight td { background-color: #eff6ff !important; }
 .row-test-highlight:hover td { background-color: #dbeafe !important; cursor: pointer; }
+
+/* ── Export Action Bar ── */
+.export-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.export-bar-label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+.export-btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-export-excel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-export-excel:hover { background: #15803d; }
+.btn-export-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-export-print:hover { background: #1d4ed8; }
 </style>
 </body>
 </html>

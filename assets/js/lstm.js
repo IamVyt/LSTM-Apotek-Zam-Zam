@@ -171,6 +171,8 @@ async function runPrediction() {
     // Reset UI
     const predResultsEl = document.getElementById('predictionResults');
     if (predResultsEl) predResultsEl.style.display = 'none';
+    const exportBarEl = document.getElementById('exportBar');
+    if (exportBarEl) exportBarEl.style.display = 'none';
     const tmEl = document.getElementById('trainingMetrics');
     if (tmEl) tmEl.style.display = 'none';
     document.querySelectorAll('.result-section-reveal').forEach(el => el.classList.remove('revealed'));
@@ -270,6 +272,9 @@ async function runPrediction() {
             consoleLog(`  Training time: ${mp.training_time_seconds || elapsed}s`, 'epoch');
 
             displayPredictionResults(response.data);
+            const obatSelectEl = document.getElementById('obatSelect');
+            const drugName = obatSelectEl?.options[obatSelectEl.selectedIndex]?.text || 'Obat';
+            showExportBar(drugName);
             showToast(`Prediksi berhasil! (${elapsed}s) \u2014 ${response.data.mape_class || ''}`, 'success');
         } else {
             consoleLog('\u2717 ' + (response.message || 'Gagal'), 'error');
@@ -955,6 +960,198 @@ const FEATURE_LABELS = [
     'Rata-rata Keluar/Hari'
 ];
 const TARGET_FEATURE_INDEX = 2; // Total Keluar
+
+// ═══════════════════════════════════════════════════
+// EXPORT FUNCTIONS — Excel & Cetak/PDF
+// ═══════════════════════════════════════════════════
+
+window.exportToExcel = function() {
+    const data = window.currentPredictionData;
+    if (!data) { alert('Tidak ada data prediksi untuk diekspor.'); return; }
+    if (typeof XLSX === 'undefined') { alert('Library SheetJS belum siap, coba lagi.'); return; }
+
+    const wb       = XLSX.utils.book_new();
+    const drugName = data.drug_name || 'Obat';
+    const runDate  = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    const mp       = data.model_params || {};
+
+    // ── Sheet 1: Ringkasan ──
+    const summaryRows = [
+        ['SISTEM PREDIKSI PERSEDIAAN OBAT — APOTEK ZAM ZAM'],
+        [],
+        ['Nama Obat',          drugName],
+        ['Tanggal Ekspor',     runDate],
+        [],
+        ['METRIK EVALUASI MODEL'],
+        ['MAPE (Semua Data)',  `${data.mape}%`],
+        ['MAPE (Test Set)',    `${data.mape_test ?? '-'}%`],
+        ['RMSE',               data.rmse],
+        ['MAE',                data.mae],
+        ['Akurasi',            `${data.accuracy}%`],
+        [],
+        ['PARAMETER MODEL'],
+        ['Epochs Aktual / Maks', `${mp.epochs_actual ?? '-'} / ${mp.epochs_configured ?? '-'}`],
+        ['Epoch Terbaik',      mp.epoch_terbaik ?? '-'],
+        ['Learning Rate',      mp.learning_rate ?? '-'],
+        ['Window Size',        mp.window_size ?? '-'],
+        ['Hidden Units',       mp.hidden_units ?? '-'],
+        ['Seed Terbaik',       mp.best_seed ?? '-'],
+        ['Waktu Training',     mp.training_time_seconds ? `${parseFloat(mp.training_time_seconds).toFixed(1)} detik` : '-'],
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{ wch: 30 }, { wch: 26 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+
+    // ── Sheet 2: Data Training & Validasi ──
+    const hdr2 = ['No', 'Minggu', 'Tanggal', 'Jenis Data', 'Aktual (Unit)', 'Prediksi (Unit)', 'Selisih', 'APE (%)'];
+    const rows2 = (data.validation_detail || []).map((it, i) => [
+        i + 1,
+        `Mg ${it.minggu}`,
+        it.tanggal_mulai || '-',
+        it.is_test ? 'TEST' : 'TRAIN',
+        it.aktual,
+        Math.round(it.prediksi),
+        parseFloat(it.error.toFixed(2)),
+        parseFloat(it.ape.toFixed(2)),
+    ]);
+    const wsValid = XLSX.utils.aoa_to_sheet([hdr2, ...rows2]);
+    wsValid['!cols'] = [
+        { wch: 5 }, { wch: 10 }, { wch: 14 }, { wch: 12 },
+        { wch: 14 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsValid, 'Data Training & Validasi');
+
+    // ── Sheet 3: Prediksi Masa Depan ──
+    const hdr3   = ['No', 'Periode', 'Tanggal Prediksi', 'Prediksi (Unit)'];
+    const preds  = data.predictions || [];
+    const labels = data.prediction_labels || [];
+    const rows3  = preds.map((it, i) => [
+        i + 1,
+        labels[i] || `N+${i + 1}`,
+        it.tanggal || '-',
+        Math.round(it.nilai),
+    ]);
+    const wsFuture = XLSX.utils.aoa_to_sheet([hdr3, ...rows3]);
+    wsFuture['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsFuture, 'Prediksi Masa Depan');
+
+    // ── Download ──
+    const safeName = drugName.replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, `Prediksi_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
+window.exportToPrint = function() {
+    const data = window.currentPredictionData;
+    if (!data) { alert('Tidak ada data prediksi untuk dicetak.'); return; }
+
+    const drugName  = data.drug_name || 'Obat';
+    const mp        = data.model_params || {};
+    const runDate   = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    const mapeNum   = parseFloat(data.mape);
+    const mapeColor = mapeNum <= 10 ? '#16a34a' : mapeNum <= 20 ? '#d97706' : '#dc2626';
+    const preds     = data.predictions || [];
+    const labels    = data.prediction_labels || [];
+
+    const validRows = (data.validation_detail || []).map((it, i) => {
+        const badge = it.is_test
+            ? '<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:9px;font-weight:700;">TEST</span>'
+            : '<span style="background:#f3f4f6;color:#6b7280;padding:1px 4px;border-radius:3px;font-size:9px;">TRAIN</span>';
+        return `<tr style="${it.is_test ? 'background:#eff6ff;' : ''}">
+            <td>${i + 1}</td>
+            <td>Mg ${it.minggu} ${badge}</td>
+            <td>${it.tanggal_mulai || '-'}</td>
+            <td>${it.aktual.toLocaleString('id-ID')}</td>
+            <td>${Math.round(it.prediksi).toLocaleString('id-ID')}</td>
+            <td>${it.error.toFixed(2)}</td>
+            <td style="color:${it.ape > 20 ? '#dc2626' : '#16a34a'};font-weight:600;">${it.ape.toFixed(2)}%</td>
+        </tr>`;
+    }).join('');
+
+    const futureRows = preds.map((it, i) =>
+        `<tr><td>${i + 1}</td><td>${labels[i] || `N+${i+1}`}</td><td>${it.tanggal || '-'}</td>
+         <td style="font-weight:700;color:#1d4ed8;">${Math.round(it.nilai).toLocaleString('id-ID')} unit</td></tr>`
+    ).join('');
+
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+<title>Laporan Prediksi — ${drugName}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',Arial,sans-serif; font-size:10.5pt; color:#1e293b; background:#fff; }
+.hdr { background:linear-gradient(135deg,#1e3a5f,#1d9e75); color:#fff; padding:18px 28px;
+       display:flex; justify-content:space-between; align-items:center; }
+.hdr h1 { font-size:13pt; font-weight:700; } .hdr p { font-size:8.5pt; opacity:.85; margin-top:3px; }
+.drug-pill { background:rgba(255,255,255,.2); padding:5px 14px; border-radius:20px; font-size:12pt; font-weight:700; }
+.content { padding:20px 28px; }
+.sec-title { font-size:10.5pt; font-weight:700; color:#1e3a5f; border-bottom:2px solid #dbeafe;
+             padding-bottom:5px; margin:20px 0 12px; }
+.metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.mc { border:1px solid #e2e8f0; border-radius:7px; padding:10px; text-align:center; }
+.ml { font-size:7.5pt; text-transform:uppercase; letter-spacing:.5px; color:#64748b; margin-bottom:3px; }
+.mv { font-size:15pt; font-weight:700; }
+.params { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.pi { background:#f8fafc; border-radius:6px; padding:7px 10px; }
+.pl { font-size:7.5pt; color:#64748b; } .pv { font-size:9.5pt; font-weight:600; }
+table { width:100%; border-collapse:collapse; font-size:9pt; }
+th { background:#1e3a5f; color:#fff; padding:7px 9px; text-align:left; font-size:8.5pt; }
+td { padding:5px 9px; border-bottom:1px solid #e2e8f0; }
+tr:last-child td { border-bottom:none; }
+.footer { margin-top:28px; text-align:center; font-size:8pt; color:#94a3b8;
+          border-top:1px solid #e2e8f0; padding-top:10px; }
+.print-btn { position:fixed; bottom:20px; right:20px; background:#1e3a5f; color:#fff;
+             border:none; padding:9px 18px; border-radius:8px; font-size:10pt; cursor:pointer;
+             box-shadow:0 4px 12px rgba(0,0,0,.2); }
+@media print { .print-btn { display:none; }
+  @page { margin:1cm; }
+  body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style></head><body>
+<div class="hdr"><div><h1>Laporan Prediksi Persediaan Obat</h1>
+<p>Sistem LSTM — Apotek Zam Zam &nbsp;|&nbsp; ${runDate}</p></div>
+<div class="drug-pill">${drugName}</div></div>
+<div class="content">
+  <div class="sec-title">📊 Metrik Evaluasi Model</div>
+  <div class="metrics">
+    <div class="mc"><div class="ml">MAPE</div><div class="mv" style="color:${mapeColor};">${data.mape}%</div></div>
+    <div class="mc"><div class="ml">RMSE</div><div class="mv" style="color:#dc2626;">${parseFloat(data.rmse).toLocaleString('id-ID',{maximumFractionDigits:2})}</div></div>
+    <div class="mc"><div class="ml">MAE</div><div class="mv" style="color:#d97706;">${parseFloat(data.mae).toLocaleString('id-ID',{maximumFractionDigits:2})}</div></div>
+    <div class="mc"><div class="ml">Akurasi</div><div class="mv" style="color:#16a34a;">${data.accuracy}%</div></div>
+  </div>
+  <div class="sec-title">⚙️ Parameter Model LSTM</div>
+  <div class="params">
+    <div class="pi"><div class="pl">Epochs Aktual</div><div class="pv">${mp.epochs_actual ?? '-'} / ${mp.epochs_configured ?? '-'}</div></div>
+    <div class="pi"><div class="pl">Learning Rate</div><div class="pv">${mp.learning_rate ?? '-'}</div></div>
+    <div class="pi"><div class="pl">Window Size</div><div class="pv">${mp.window_size ?? '-'}</div></div>
+    <div class="pi"><div class="pl">Hidden Units</div><div class="pv">${mp.hidden_units ?? '-'}</div></div>
+    <div class="pi"><div class="pl">Seed Terbaik</div><div class="pv">${mp.best_seed ?? '-'}</div></div>
+    <div class="pi"><div class="pl">Waktu Training</div><div class="pv">${mp.training_time_seconds ? parseFloat(mp.training_time_seconds).toFixed(1)+' dtk' : '-'}</div></div>
+  </div>
+  <div class="sec-title">📋 Data Training &amp; Validasi</div>
+  <table><thead><tr><th>No</th><th>Periode</th><th>Tanggal</th>
+  <th>Aktual</th><th>Prediksi</th><th>Selisih</th><th>APE (%)</th></tr></thead>
+  <tbody>${validRows}</tbody></table>
+  <div class="sec-title">🔮 Prediksi Masa Depan</div>
+  <table><thead><tr><th>No</th><th>Periode</th><th>Tanggal</th><th>Prediksi (Unit)</th></tr></thead>
+  <tbody>${futureRows}</tbody></table>
+  <div class="footer">Laporan ini dibuat otomatis oleh Sistem Prediksi Persediaan Obat LSTM — Apotek Zam Zam<br>${runDate}</div>
+</div>
+<button class="print-btn" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+<script>window.onload=()=>setTimeout(()=>window.print(),600);<\/script>
+</body></html>`;
+
+    const win = window.open('', '_blank', 'width=940,height=720,scrollbars=yes');
+    if (!win) { alert('Pop-up diblokir browser. Izinkan pop-up untuk halaman ini.'); return; }
+    win.document.write(html);
+    win.document.close();
+};
+
+// ── Tampilkan export bar + simpan drug_name setelah prediksi berhasil ──
+function showExportBar(drugName) {
+    const bar  = document.getElementById('exportBar');
+    const label = document.getElementById('exportBarDrugName');
+    if (bar)   bar.style.display = 'flex';
+    if (label) label.textContent = `Simpan hasil — ${drugName}:`;
+    if (window.currentPredictionData) window.currentPredictionData.drug_name = drugName;
+    if (window.lucide) window.lucide.createIcons();
+}
 
 window.showTraceModal = function(validationIdx) {
     const data = window.currentPredictionData;

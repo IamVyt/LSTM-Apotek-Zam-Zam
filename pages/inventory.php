@@ -146,6 +146,11 @@ include __DIR__ . '/../includes/sidebar.php';
                 <i data-lucide="search" class="search-icon"></i>
                 <input type="text" id="searchInput" placeholder="Cari nama obat..." oninput="handleSearch()">
             </div>
+            <div>
+                <button type="button" class="btn btn-danger" onclick="deleteAllHistory()" style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> Hapus Semua Data
+                </button>
+            </div>
         </div>
     </div>
 
@@ -168,10 +173,11 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th>Total Keluar</th>
                         <th>Stok Akhir</th>
                         <th>Rata-rata/Hari</th>
+                        <th class="text-center" style="width: 60px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="historisBody">
-                    <tr><td colspan="10" class="text-center text-muted" style="padding:40px;">
+                    <tr><td colspan="11" class="text-center text-muted" style="padding:40px;">
                         <div class="spinner" style="margin:0 auto 12px;"></div>
                         Memuat data persediaan...
                     </td></tr>
@@ -190,11 +196,25 @@ include __DIR__ . '/../includes/sidebar.php';
 
 <script>
 let currentPage = 1;
+let currentHistoryData = [];
+let currentEditId = null;
 const searchDebounce = debounce(() => applyFilters(), 150);
 
 function handleSearch() { searchDebounce(); }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Pindahkan modal/dropdown ke body agar tidak terkurung oleh stacking context parent
+    ['actionDropdownMenu', 'modalConfirmDelete', 'modalActionHistory'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) document.body.appendChild(el);
+    });
+
+    // Sembunyikan dropdown saat klik di luar
+    document.addEventListener('click', () => {
+        const dd = document.getElementById('actionDropdownMenu');
+        if (dd) dd.style.display = 'none';
+    });
+
     loadHistory();
     loadObatSuggestions();
     if (window.lucide) lucide.createIcons();
@@ -222,8 +242,10 @@ async function loadHistory(page = 1) {
 
 function renderHistoryTable(items) {
     const tbody = document.getElementById('historisBody');
+    currentHistoryData = items || [];
+    
     if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:40px;">Tidak ada data persediaan ditemukan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted" style="padding:40px;">Tidak ada data persediaan ditemukan</td></tr>';
         return;
     }
 
@@ -249,11 +271,18 @@ function renderHistoryTable(items) {
             <td class="text-right">${Number(item.stok_awal).toLocaleString('id-ID')}</td>
             <td class="text-right fw-600" style="${masukStyle}">+${masuk.toLocaleString('id-ID')}</td>
             <td class="text-right fw-600" style="${keluarStyle}">-${keluar.toLocaleString('id-ID')}</td>
-            <td class="text-right fw-600"><strong>${Number(item.stok_akhir).toLocaleString('id-ID')}</strong></td>
+            <td class="text-right">${Number(item.stok_akhir).toLocaleString('id-ID')}</td>
             <td class="text-right cell-muted">${Number(item.rata_rata_keluar).toFixed(2)}</td>
+            <td class="text-center" style="white-space: nowrap;">
+                <button type="button" style="background:transparent; border:none; cursor:pointer; padding:4px;" onclick="toggleActionDropdown(event, ${item.id})" title="Pilih Aksi">
+                    <i data-lucide="pencil" style="width: 18px; height: 18px; color: var(--primary);"></i>
+                </button>
+            </td>
         </tr>
         `;
     }).join('');
+    
+    if (window.lucide) lucide.createIcons();
 }
 
 function renderPagination(pag, containerId) {
@@ -283,6 +312,137 @@ function renderPagination(pag, containerId) {
 
     html += '</div>';
     container.innerHTML = html;
+}
+
+let currentActionId = null;
+
+function toggleActionDropdown(event, id) {
+    event.stopPropagation();
+    currentActionId = id;
+    const dropdown = document.getElementById('actionDropdownMenu');
+    if (!dropdown) return;
+    
+    // Posisi relatif terhadap tombol yang diklik
+    const rect = event.currentTarget.getBoundingClientRect();
+    dropdown.style.display = 'block';
+    dropdown.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    
+    // Pastikan dropdown tidak keluar layar kanan
+    let leftPos = rect.right + window.scrollX - 140;
+    if (leftPos < 0) leftPos = rect.left + window.scrollX;
+    dropdown.style.left = leftPos + 'px';
+    
+    if (window.lucide) lucide.createIcons();
+}
+
+function proceedToEdit() {
+    if (!currentActionId) return;
+    openActionModal(currentActionId);
+}
+
+function confirmDelete() {
+    if (!currentActionId) return;
+    const el = document.getElementById('modalConfirmDelete');
+    el.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeConfirmDelete() {
+    document.getElementById('modalConfirmDelete').style.display = 'none';
+}
+
+async function executeDelete() {
+    if (!currentActionId) return;
+    
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    try {
+        const res = await fetchAPI(BASE_URL + '/api/inventory.php', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'delete_history', id: currentActionId, csrf_token: csrf })
+        });
+        showToast(res.message, 'success');
+        closeConfirmDelete();
+        loadHistory(currentPage);
+    } catch (err) {
+        showToast(err.message || 'Gagal menghapus data', 'error');
+    }
+}
+
+function openActionModal(id) {
+    const item = currentHistoryData.find(i => i.id == id);
+    if(!item) return;
+    
+    document.getElementById('modalId').value = id;
+    document.getElementById('modalNamaObat').value = item.nama_obat;
+    document.getElementById('modalKategori').value = item.nama_kategori || '';
+    document.getElementById('modalMingguKe').value = item.minggu_ke;
+    document.getElementById('modalTglMulai').value = item.tanggal;
+    document.getElementById('modalTglAkhir').value = item.tanggal_akhir || item.tanggal;
+    document.getElementById('modalStokAwal').value = item.stok_awal;
+    document.getElementById('modalTotalMasuk').value = item.jumlah_masuk;
+    document.getElementById('modalTotalKeluar').value = item.jumlah_keluar;
+    document.getElementById('modalStokAkhir').value = item.stok_akhir;
+    document.getElementById('modalRataRata').value = item.rata_rata_keluar;
+    
+    document.getElementById('modalResultMsg').textContent = '';
+    document.getElementById('modalActionHistory').style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeActionModal() {
+    document.getElementById('modalActionHistory').style.display = 'none';
+}
+
+async function submitModalAction(e) {
+    e.preventDefault();
+    if (!confirm('Apakah data ini benar-benar ingin diubah/edit?')) return;
+
+    const id = document.getElementById('modalId').value;
+    const msgEl = document.getElementById('modalResultMsg');
+    
+    const row = {
+        minggu_ke:        parseInt(document.getElementById('modalMingguKe').value) || 1,
+        tanggal:          document.getElementById('modalTglMulai').value,
+        tanggal_akhir:    document.getElementById('modalTglAkhir').value,
+        stok_awal:        parseInt(document.getElementById('modalStokAwal').value) || 0,
+        jumlah_masuk:     parseInt(document.getElementById('modalTotalMasuk').value) || 0,
+        jumlah_keluar:    parseInt(document.getElementById('modalTotalKeluar').value) || 0,
+        stok_akhir:       parseInt(document.getElementById('modalStokAkhir').value) || 0,
+        rata_rata_keluar: parseFloat(document.getElementById('modalRataRata').value) || 0,
+    };
+    
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    try {
+        const payload = { action: 'edit_history', id: id, ...row, csrf_token: csrf };
+        const res = await fetchAPI(BASE_URL + '/api/inventory.php', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        showToast(res.message, 'success');
+        closeActionModal();
+        loadHistory(currentPage);
+    } catch (err) {
+        msgEl.textContent = `❌ ${err.message}`;
+        msgEl.style.color = '#EF4444';
+        showToast(err.message || 'Gagal memperbarui data', 'error');
+    }
+}
+
+async function deleteAllHistory() {
+    if (!confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data histori? Tindakan ini tidak dapat dibatalkan.')) return;
+    
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    try {
+        const res = await fetchAPI(BASE_URL + '/api/inventory.php', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'delete_all_history', csrf_token: csrf })
+        });
+        showToast(res.message, 'success');
+        loadHistory(1);
+    } catch (err) {
+        showToast(err.message || 'Gagal menghapus semua data', 'error');
+    }
 }
 
 // ==========================================
@@ -559,6 +719,7 @@ async function submitManualInput(e) {
         msgEl.textContent = `✅ ${res.message}`;
         msgEl.style.color = 'var(--primary)';
         showToast(res.message, 'success');
+        resetManualForm();
         loadHistory(1);
     } catch (err) {
         msgEl.textContent = `❌ ${err.message}`;
@@ -574,5 +735,123 @@ function resetManualForm() {
     document.getElementById('manualResultMsg').textContent = '';
 }
 </script>
+    <!-- Modals -->
+    <style>
+    @keyframes invPopIn {
+        0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    .inv-overlay {
+        display: none;
+        position: fixed;
+        z-index: 99999;
+        left: 0; top: 0;
+        width: 100vw; height: 100vh;
+        background-color: rgba(0,0,0,0.5);
+    }
+    .inv-popup {
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(--card-bg, #fff);
+        padding: 24px;
+        border-radius: 12px;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        animation: invPopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    </style>
+
+    <!-- Dropdown Menu Aksi -->
+    <div id="actionDropdownMenu" style="display:none; position:absolute; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; z-index:99990; min-width:140px; overflow:hidden;">
+        <button type="button" onclick="proceedToEdit()" style="display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 16px; border:none; background:transparent; cursor:pointer; color:var(--text-main); font-size:0.875rem; border-bottom:1px solid var(--border-color);">
+            <i data-lucide="edit" style="width:14px;height:14px;color:var(--primary);"></i> Edit Manual
+        </button>
+        <button type="button" onclick="confirmDelete()" style="display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 16px; border:none; background:transparent; cursor:pointer; color:#EF4444; font-size:0.875rem;">
+            <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Hapus Data
+        </button>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div class="inv-overlay" id="modalConfirmDelete">
+        <div class="inv-popup" style="width:90%; max-width:400px; text-align:center;">
+            <div style="width:48px; height:48px; border-radius:50%; background-color:rgba(239, 68, 68, 0.1); display:flex; justify-content:center; align-items:center; margin:0 auto 16px;">
+                <i data-lucide="alert-triangle" style="width:24px; height:24px; color:#EF4444;"></i>
+            </div>
+            <h4 style="margin-bottom:12px; font-weight:600; color:var(--text-main);">Konfirmasi Hapus</h4>
+            <p style="margin-bottom:24px; color:var(--text-muted); font-size:0.9rem;">Apakah Anda yakin ingin menghapus data persediaan ini? Tindakan ini tidak dapat dibatalkan.</p>
+            <div style="display:flex; justify-content:center; gap:12px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeConfirmDelete()">Batal</button>
+                <button class="btn btn-danger" style="flex:1;" onclick="executeDelete()">Hapus Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit History -->
+    <div class="inv-overlay" id="modalActionHistory">
+        <div class="inv-popup" style="width:90%; max-width:640px;">
+            <div class="flex-between" style="border-bottom:1px solid var(--border-color); padding-bottom:16px; margin-bottom:20px;">
+                <h3 style="margin:0; display:flex; align-items:center; gap:8px;"><i data-lucide="edit" class="icon-inline"></i> Edit Data Histori</h3>
+                <button onclick="closeActionModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            
+            <form id="modalActionForm" onsubmit="submitModalAction(event)">
+                <input type="hidden" id="modalId">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom:24px;">
+                    <div style="grid-column: span 2;">
+                        <label class="form-label text-xs fw-600">Nama Obat</label>
+                        <input type="text" class="form-control" id="modalNamaObat" readonly style="background:rgba(0,0,0,0.02);">
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Kategori</label>
+                        <input type="text" class="form-control" id="modalKategori" readonly style="background:rgba(0,0,0,0.02);">
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Minggu Ke</label>
+                        <input type="number" class="form-control" id="modalMingguKe" min="1" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Tanggal Mulai</label>
+                        <input type="date" class="form-control" id="modalTglMulai" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Tanggal Akhir</label>
+                        <input type="date" class="form-control" id="modalTglAkhir" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Stok Awal</label>
+                        <input type="number" class="form-control" id="modalStokAwal" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Total Masuk</label>
+                        <input type="number" class="form-control" id="modalTotalMasuk" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Total Keluar</label>
+                        <input type="number" class="form-control" id="modalTotalKeluar" min="0" required>
+                    </div>
+                    <div>
+                        <label class="form-label text-xs fw-600">Stok Akhir</label>
+                        <input type="number" class="form-control" id="modalStokAkhir" min="0" required>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label text-xs fw-600">Rata-rata Keluar/Hari</label>
+                        <input type="number" class="form-control" id="modalRataRata" min="0" step="0.01" required>
+                    </div>
+                </div>
+                
+                <div style="display:flex; justify-content:flex-end; align-items:center;">
+                    <div style="display:flex; gap:12px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeActionModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="save" style="width:16px;height:16px;"></i> Simpan Perubahan
+                        </button>
+                    </div>
+                </div>
+                <div id="modalResultMsg" class="text-xs fw-600" style="margin-top: 12px; text-align: center;"></div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
