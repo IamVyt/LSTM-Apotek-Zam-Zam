@@ -210,15 +210,19 @@ def run_prediction_tf(hist_data, periode=4, epochs=1500, lr=0.001, window_size=1
         y_test_pred = y_pred
         y_test_actual = y_actual
 
-    mae = _safe_float(np.mean(np.abs(y_test_actual - y_test_pred)), 0.0)
-    rmse = _safe_float(np.sqrt(np.mean((y_test_actual - y_test_pred) ** 2)), 0.0)
-
-    # mape_test = MAPE hanya pada test set (20% terakhir) — metrik generalisasi
+    # Metrik pada TEST SET (20% terakhir) — untuk melihat generalisasi model,
+    # disimpan sebagai metrik sekunder (mape_test sudah lebih dulu ada dengan pola ini)
+    mae_test  = _safe_float(np.mean(np.abs(y_test_actual - y_test_pred)), 0.0)
+    mse_test  = _safe_float(np.mean((y_test_actual - y_test_pred) ** 2), 0.0)
+    rmse_test = _safe_float(np.sqrt(mse_test), 0.0)
     mape_test = compute_mape(y_test_actual, y_test_pred)
 
-    # mape = MAPE SELURUH data (train+test) — metrik UTAMA yang ditampilkan sistem
-    # Ini konsisten dengan perhitungan manual/Excel pada dataset kecil (N<100)
-    # dan merupakan pendekatan yang valid untuk evaluasi fit model pada data historis
+    # Metrik UTAMA (MAE, MSE, RMSE, MAPE) dihitung pada SELURUH data (train+test).
+    # Satu keluarga metrik disamakan skupnya dengan MAPE utama supaya konsisten
+    # satu sama lain, dan mudah dicocokkan dengan perhitungan manual/Excel.
+    mae  = _safe_float(np.mean(np.abs(y_actual - y_pred)), 0.0)
+    mse  = _safe_float(np.mean((y_actual - y_pred) ** 2), 0.0)
+    rmse = _safe_float(np.sqrt(mse), 0.0)
     mape = compute_mape(y_actual, y_pred)
     accuracy = _safe_float(max(0.0, min(100.0, 100.0 - mape)), 0.0)
 
@@ -408,9 +412,13 @@ def run_prediction_tf(hist_data, periode=4, epochs=1500, lr=0.001, window_size=1
         'success': True,
         'predictions': future_predictions,
         'mae': round(mae, 4),
+        'mse': round(mse, 4),
         'rmse': round(rmse, 4),
         'mape': round(mape, 2),
         'mape_test': round(mape_test, 2),
+        'mae_test': round(mae_test, 4),
+        'mse_test': round(mse_test, 4),
+        'rmse_test': round(rmse_test, 4),
         'mape_class': classify_mape(mape),
         'accuracy': round(accuracy, 2),
         'confidence': round(_safe_float(min(99.0, max(0.0, accuracy - 2.0)), 0.0), 1),

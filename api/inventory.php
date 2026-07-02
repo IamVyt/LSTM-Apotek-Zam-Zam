@@ -421,24 +421,68 @@ function deleteHistory(PDO $db, array $input): void {
         jsonResponse(['success' => false, 'message' => 'ID histori diperlukan'], 400);
     }
 
+    $db->beginTransaction();
     try {
+        // Ambil obat_id dari baris yang akan dihapus, untuk cek sisa data setelahnya
+        $stmtFind = $db->prepare("SELECT obat_id FROM data_historis WHERE id = ?");
+        $stmtFind->execute([$id]);
+        $row = $stmtFind->fetch();
+
+        if (!$row) {
+            $db->rollBack();
+            jsonResponse(['success' => false, 'message' => 'Data histori tidak ditemukan (mungkin sudah dihapus sebelumnya)'], 404);
+        }
+        $obatId = (int)$row['obat_id'];
+
         $stmt = $db->prepare("DELETE FROM data_historis WHERE id = ?");
         $stmt->execute([$id]);
-        jsonResponse(['success' => true, 'message' => 'Data histori berhasil dihapus']);
+
+        // Cek sisa data historis untuk obat ini. Kalau sudah kosong sepenuhnya,
+        // riwayat prediksi lama untuk obat ini jadi tidak valid lagi (dibuat dari data yang sudah hilang)
+        $stmtCount = $db->prepare("SELECT COUNT(*) FROM data_historis WHERE obat_id = ?");
+        $stmtCount->execute([$obatId]);
+        $sisa = (int) $stmtCount->fetchColumn();
+
+        $pesanTambahan = '';
+        if ($sisa === 0) {
+            $stmtPred = $db->prepare("DELETE FROM prediksi_lstm WHERE obat_id = ?");
+            $stmtPred->execute([$obatId]);
+            $jmlPred = $stmtPred->rowCount();
+            if ($jmlPred > 0) {
+                $pesanTambahan = " {$jmlPred} riwayat prediksi terkait ikut terhapus karena data sumbernya sudah kosong.";
+            }
+        }
+
+        $db->commit();
+        jsonResponse(['success' => true, 'message' => 'Data histori berhasil dihapus.' . $pesanTambahan]);
     } catch (Exception $e) {
+        $db->rollBack();
         error_log("Delete History Error: " . $e->getMessage());
-        jsonResponse(['success' => false, 'message' => 'Gagal menghapus data histori'], 500);
+        jsonResponse(['success' => false, 'message' => 'Gagal menghapus data histori: ' . $e->getMessage()], 500);
     }
 }
 
 function deleteAllHistory(PDO $db, array $input): void {
+    $db->beginTransaction();
     try {
-        $stmt = $db->prepare("DELETE FROM data_historis");
-        $stmt->execute();
-        jsonResponse(['success' => true, 'message' => 'Semua data histori berhasil dihapus']);
+        $jmlHist = (int) $db->query("SELECT COUNT(*) FROM data_historis")->fetchColumn();
+        $jmlPred = (int) $db->query("SELECT COUNT(*) FROM prediksi_lstm")->fetchColumn();
+
+        $db->exec("DELETE FROM data_historis");
+        // Semua sumber data sudah kosong, jadi seluruh riwayat prediksi lama otomatis tidak valid lagi
+        $db->exec("DELETE FROM prediksi_lstm");
+
+        $db->commit();
+
+        $pesan = "Semua data histori berhasil dihapus ({$jmlHist} baris).";
+        if ($jmlPred > 0) {
+            $pesan .= " {$jmlPred} riwayat prediksi terkait juga ikut terhapus.";
+        }
+        jsonResponse(['success' => true, 'message' => $pesan]);
     } catch (Exception $e) {
+        $db->rollBack();
         error_log("Delete All History Error: " . $e->getMessage());
-        jsonResponse(['success' => false, 'message' => 'Gagal menghapus semua data histori'], 500);
+        jsonResponse(['success' => false, 'message' => 'Gagal menghapus semua data histori: ' . $e->getMessage()], 500);
     }
 }
 

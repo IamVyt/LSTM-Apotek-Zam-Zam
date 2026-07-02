@@ -156,10 +156,6 @@ $csrfToken = generateCSRFToken();
                         <i data-lucide="log-in"></i> Masuk
                     </button>
                 </form>
-
-                <div style="margin-top:24px;text-align:center;">
-                    <span class="text-sm text-muted">Demo: <strong>admin</strong> / <strong>admin123</strong></span>
-                </div>
             </div>
         </div>
     </div>

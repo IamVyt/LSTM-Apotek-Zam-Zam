@@ -275,6 +275,7 @@ async function runPrediction() {
             const obatSelectEl = document.getElementById('obatSelect');
             const drugName = obatSelectEl?.options[obatSelectEl.selectedIndex]?.text || 'Obat';
             showExportBar(drugName);
+            refreshPredictionHistoryTable();
             showToast(`Prediksi berhasil! (${elapsed}s) \u2014 ${response.data.mape_class || ''}`, 'success');
         } else {
             consoleLog('\u2717 ' + (response.message || 'Gagal'), 'error');
@@ -459,14 +460,21 @@ function renderLossChart(data) {
 // HERO SECTION — selalu terlihat di atas tabs (MAPE, RMSE, Rekomendasi)
 // ═══════════════════════════════════════════════════
 function renderHeroSection(data, rmseVal, mapeVal, accVal) {
-    // MAPE & RMSE & Accuracy
+    // MAPE & RMSE & MAE & MSE & Accuracy
     const heroMAPE = document.getElementById('heroMAPE');
     const heroRMSE = document.getElementById('heroRMSE');
+    const heroMAE = document.getElementById('heroMAE');
+    const heroMSE = document.getElementById('heroMSE');
     const heroAccuracy = document.getElementById('heroAccuracy');
     const heroMAPEClass = document.getElementById('heroMAPEClass');
 
+    const maeVal = parseFloat(data.mae) || 0;
+    const mseVal = parseFloat(data.mse) || (rmseVal * rmseVal);
+
     if (heroMAPE) heroMAPE.textContent = mapeVal.toFixed(2) + '%';
     if (heroRMSE) heroRMSE.textContent = rmseVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (heroMAE) heroMAE.textContent = maeVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (heroMSE) heroMSE.textContent = mseVal.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (heroAccuracy) heroAccuracy.textContent = accVal.toFixed(2) + '%';
 
     // Tampilkan MAPE test set sebagai metrik sekunder (generalisasi 20% data terakhir)
@@ -732,6 +740,75 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════
+// REFRESH RIWAYAT PREDIKSI (tanpa reload halaman)
+// Dipanggil otomatis setelah prediksi baru selesai, supaya baris baru
+// langsung tampil di tabel "Riwayat Prediksi Sebelumnya" tanpa perlu F5.
+// ═══════════════════════════════════════════════════
+async function refreshPredictionHistoryTable() {
+    try {
+        const res = await fetchAPI(BASE_URL + '/api/predictions.php?action=history&limit=10');
+        if (!res.success) return;
+        renderPredictionHistoryTable(res.data);
+    } catch (e) {
+        // Diamkan saja — tabel lama masih tampil, tidak mengganggu alur utama
+        console.warn('Gagal me-refresh riwayat prediksi:', e);
+    }
+}
+
+function renderPredictionHistoryTable(items) {
+    const tbody = document.getElementById('riwayatPrediksiBody');
+    if (!tbody) return;
+
+    if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:32px;">Belum ada riwayat perhitungan.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(p => {
+        let params = {};
+        try { params = JSON.parse(p.model_params) || {}; } catch (e) { params = {}; }
+        const ep = params.epochs_actual ?? params.epochs ?? '-';
+        const lr = params.learning_rate ?? '-';
+        const ws = params.window_size ?? '-';
+
+        const mapeVal = parseFloat(p.mape) || 0;
+        const rmseVal = parseFloat(p.rmse) || 0;
+        const maeVal  = parseFloat(p.mae) || 0;
+        const akuVal  = parseFloat(p.akurasi) || 0;
+        const totalData = Number(p.total_data_historis || 0);
+
+        const tglRun = new Date(p.created_at).toLocaleDateString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        }) + ', ' + new Date(p.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        return `<tr>
+            <td><span class="fw-600" style="color:var(--primary);">${escapeHtml(p.nama_obat)}</span></td>
+            <td class="text-sm">${tglRun}</td>
+            <td class="text-xs text-muted">Ep: ${ep} &bull; LR: ${lr} &bull; Win: ${ws}</td>
+            <td class="text-center fw-600">${totalData.toLocaleString('id-ID')} baris</td>
+            <td class="text-center">
+                <span class="badge ${mapeVal <= 20 ? 'badge-aman' : 'badge-waspada'}">${mapeVal.toFixed(2)}%</span>
+            </td>
+            <td class="text-center fw-600" style="color:#ef4444;">${rmseVal.toFixed(2)}</td>
+            <td class="text-center fw-600" style="color:#d97706;">${maeVal.toFixed(2)}</td>
+            <td class="text-center fw-600" style="color:#10b981;">${akuVal.toFixed(2)}%</td>
+            <td class="text-center">
+                <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn btn-sm" style="color:#3b82f6; background:#eff6ff; border:1px solid #dbeafe; padding: 6px 12px;" onclick="viewHistory(${p.id})" title="Lihat Detail Hasil">
+                        <i data-lucide="eye" class="icon-14"></i> Lihat
+                    </button>
+                    <button class="btn btn-sm" style="color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; padding: 6px 12px;" onclick="deleteHistory(${p.id})" title="Hapus Riwayat">
+                        <i data-lucide="trash-2" class="icon-14"></i> Hapus
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
 }
 
 // ═══════════════════════════════════════════════════

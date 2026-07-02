@@ -619,7 +619,7 @@ body {
 /* ─── Hero Section: MAPE, RMSE, Rekomendasi (selalu terlihat) ─── */
 .result-hero {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-columns: 1.3fr 1fr;
     gap: 16px;
     margin-bottom: 24px;
     background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
@@ -709,8 +709,60 @@ body {
 .hm-class-fair      { background: #fef3c7; color: #92400e; }
 .hm-class-poor      { background: #fee2e2; color: #991b1b; }
 
+/* ─── Kartu metrik konsolidasi: MAPE + RMSE + MAE + MSE dalam satu kartu ─── */
+.hero-metric-full-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.hmf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.hero-metric-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.hmm-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+}
+.hmm-label {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.hmm-value {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+.hero-metric-footer {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+}
+
 @media (max-width: 880px) {
     .result-hero { grid-template-columns: 1fr; }
+    .hero-metric-mini-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* ─── Tab Navigation ─── */

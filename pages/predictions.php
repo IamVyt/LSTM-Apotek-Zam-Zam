@@ -21,7 +21,8 @@ $pageTitle = 'Prediksi LSTM';
 $obatList = $db->query("SELECT id, nama_obat FROM obat WHERE status = 1 ORDER BY nama_obat")->fetchAll();
 
 // Recent prediction history
-$stmtHistory = $db->query("SELECT p.*, o.nama_obat
+$stmtHistory = $db->query("SELECT p.*, o.nama_obat,
+                            (SELECT COUNT(*) FROM data_historis dh WHERE dh.obat_id = p.obat_id) AS total_data_historis
                             FROM prediksi_lstm p
                             JOIN obat o ON p.obat_id = o.id
                             ORDER BY p.created_at DESC LIMIT 10");
@@ -297,16 +298,33 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div class="hero-rekom-text" id="heroRekomText">Menunggu hasil prediksi…</div>
             </div>
-            <div class="hero-metric-card">
-                <span class="hm-label">MAPE</span>
-                <span class="hm-value" id="heroMAPE">—%</span>
-                <span class="hm-class-badge hm-class-fair" id="heroMAPEClass">—</span>
-                <span style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;" id="heroMAPEAll" title="MAPE test set (20% terakhir data) — metrik generalisasi model">Test set: —</span>
-            </div>
-            <div class="hero-metric-card">
-                <span class="hm-label">RMSE</span>
-                <span class="hm-value" id="heroRMSE">—</span>
-                <span class="hm-sub">Akurasi: <strong id="heroAccuracy">—%</strong></span>
+            <div class="hero-metric-full-card">
+                <div class="hmf-header">
+                    <span class="hm-label" style="margin-bottom:0;">📊 Metrik Evaluasi Model</span>
+                    <span class="hm-class-badge hm-class-fair" id="heroMAPEClass">—</span>
+                </div>
+                <div class="hero-metric-mini-grid">
+                    <div class="hmm-item">
+                        <span class="hmm-label">MAPE</span>
+                        <span class="hmm-value" id="heroMAPE">—%</span>
+                    </div>
+                    <div class="hmm-item">
+                        <span class="hmm-label">RMSE</span>
+                        <span class="hmm-value" id="heroRMSE">—</span>
+                    </div>
+                    <div class="hmm-item">
+                        <span class="hmm-label">MAE</span>
+                        <span class="hmm-value" id="heroMAE">—</span>
+                    </div>
+                    <div class="hmm-item">
+                        <span class="hmm-label">MSE</span>
+                        <span class="hmm-value" id="heroMSE">—</span>
+                    </div>
+                </div>
+                <div class="hero-metric-footer">
+                    Akurasi Model: <strong id="heroAccuracy">—%</strong>
+                    <span id="heroMAPEAll" style="margin-left:10px;" title="MAPE test set (20% terakhir data) — metrik generalisasi model">Test set: —</span>
+                </div>
             </div>
         </div>
 
@@ -617,12 +635,15 @@ include __DIR__ . '/../includes/sidebar.php';
                             <th>Nama Obat</th>
                             <th>Tanggal Run</th>
                             <th>Konfigurasi</th>
-                            <th class="text-center">Akurasi (MAPE)</th>
-                            <th class="text-center">Error (RMSE)</th>
+                            <th class="text-center">Total Data</th>
+                            <th class="text-center">MAPE</th>
+                            <th class="text-center">RMSE</th>
+                            <th class="text-center">MAE</th>
+                            <th class="text-center">Akurasi</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="riwayatPrediksiBody">
                         <?php foreach ($recentPredictions as $p): ?>
                         <tr>
                             <td><span class="fw-600" style="color:var(--primary);"><?php echo e($p['nama_obat']); ?></span></td>
@@ -640,12 +661,15 @@ include __DIR__ . '/../includes/sidebar.php';
                                 }
                                 ?>
                             </td>
+                            <td class="text-center fw-600"><?php echo number_format((int)$p['total_data_historis']); ?> baris</td>
                             <td class="text-center">
                                 <span class="badge <?php echo (float)$p['mape'] <= 20 ? 'badge-aman' : 'badge-waspada'; ?>">
                                     <?php echo number_format($p['mape'], 2); ?>%
                                 </span>
                             </td>
                             <td class="text-center fw-600" style="color:#ef4444;"><?php echo number_format($p['rmse'], 2); ?></td>
+                            <td class="text-center fw-600" style="color:#d97706;"><?php echo number_format($p['mae'], 2); ?></td>
+                            <td class="text-center fw-600" style="color:#10b981;"><?php echo number_format($p['akurasi'], 2); ?>%</td>
                             <td class="text-center">
                                 <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
                                     <button class="btn btn-sm" style="color:#3b82f6; background:#eff6ff; border:1px solid #dbeafe; padding: 6px 12px;" onclick="viewHistory(<?php echo $p['id']; ?>)" title="Lihat Detail Hasil">
@@ -659,7 +683,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($recentPredictions)): ?>
-                        <tr><td colspan="6" class="text-center text-muted" style="padding:32px;">Belum ada riwayat perhitungan.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted" style="padding:32px;">Belum ada riwayat perhitungan.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

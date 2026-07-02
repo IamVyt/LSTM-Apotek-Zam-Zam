@@ -57,14 +57,28 @@ function deletePredictionHistory(PDO $db): void
     $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
     $id = isset($input['id']) ? $input['id'] : 0;
 
-    if ($id === 'all') {
-        $db->exec("TRUNCATE TABLE prediksi_lstm");
-        jsonResponse(['success' => true, 'message' => 'Semua riwayat berhasil dihapus']);
-    } else {
-        $id = (int) $id;
-        $stmt = $db->prepare("DELETE FROM prediksi_lstm WHERE id = ?");
-        $stmt->execute([$id]);
-        jsonResponse(['success' => true, 'message' => 'Riwayat berhasil dihapus']);
+    try {
+        if ($id === 'all') {
+            // DELETE dipakai alih-alih TRUNCATE supaya aman dijalankan dalam transaksi
+            // dan tidak gagal kalau ada koneksi lain yang masih memegang lock di tabel ini
+            $jml = (int) $db->query("SELECT COUNT(*) FROM prediksi_lstm")->fetchColumn();
+            $db->exec("DELETE FROM prediksi_lstm");
+            jsonResponse(['success' => true, 'message' => "Semua riwayat berhasil dihapus ({$jml} baris)."]);
+        } else {
+            $id = (int) $id;
+            if (!$id) {
+                jsonResponse(['success' => false, 'message' => 'ID riwayat tidak valid'], 400);
+            }
+            $stmt = $db->prepare("DELETE FROM prediksi_lstm WHERE id = ?");
+            $stmt->execute([$id]);
+            if ($stmt->rowCount() === 0) {
+                jsonResponse(['success' => false, 'message' => 'Riwayat tidak ditemukan atau sudah terhapus sebelumnya'], 404);
+            }
+            jsonResponse(['success' => true, 'message' => 'Riwayat berhasil dihapus']);
+        }
+    } catch (Exception $e) {
+        error_log("Delete Prediction History Error: " . $e->getMessage());
+        jsonResponse(['success' => false, 'message' => 'Gagal menghapus riwayat: ' . $e->getMessage()], 500);
     }
 }
 
@@ -435,9 +449,13 @@ function runPrediction(PDO $db): void
             'historical_labels' => $historicalLabels,
             'historical_values' => $historicalValues,
             'mae' => $result['mae'],
+            'mse' => $result['mse'] ?? null,
             'rmse' => $result['rmse'],
             'mape' => $result['mape'],
             'mape_test' => $result['mape_test'] ?? null,
+            'mae_test' => $result['mae_test'] ?? null,
+            'mse_test' => $result['mse_test'] ?? null,
+            'rmse_test' => $result['rmse_test'] ?? null,
             'mape_class' => $result['mape_class'] ?? '',
             'accuracy' => $result['accuracy'],
             'confidence' => $result['confidence'],
@@ -471,7 +489,8 @@ function getPredictionHistory(PDO $db): void
         $params[':obat_id'] = $obatId;
     }
 
-    $stmt = $db->prepare("SELECT p.*, o.nama_obat
+    $stmt = $db->prepare("SELECT p.*, o.nama_obat,
+                           (SELECT COUNT(*) FROM data_historis dh WHERE dh.obat_id = p.obat_id) AS total_data_historis
                            FROM prediksi_lstm p
                            JOIN obat o ON p.obat_id = o.id
                            WHERE {$where}
